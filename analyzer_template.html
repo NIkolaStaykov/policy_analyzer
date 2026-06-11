@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Policy Analyzer</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
+<style>
+  :root {
+    --bg:     #111827;
+    --panel:  #1f2937;
+    --border: #374151;
+    --text:   #f3f4f6;
+    --muted:  #9ca3af;
+    --blue:   #60a5fa;
+    --green:  #34d399;
+    --yellow: #fbbf24;
+    --red:    #f87171;
+    --accent: #c46a6a;        /* soothing dark red — branding + active state */
+    --accent-dim: #8f4a4a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 12px/1.4 ui-monospace, monospace;
+    height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* ── header ── */
+  #hdr {
+    flex-shrink: 0;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 0; padding: 0 12px;
+    height: 36px;
+  }
+  .logo {
+    background-image: url('./assets/logo.png');
+    background-repeat: no-repeat; background-position: left center;
+    background-size: contain; display: inline-block; align-items: center;
+    width: 131px; height: 24px; margin-right: 20px;
+  }
+  .tab-btn {
+    background: none; border: none; border-bottom: 2px solid transparent;
+    color: var(--muted); cursor: pointer; font: inherit; font-size: 12px;
+    padding: 0 12px; height: 36px; transition: color .15s;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+  #session-info {
+    margin-left: auto; color: var(--muted); font-size: 11px;
+  }
+
+  /* ── panes ── */
+  .pane { display: flex; flex: 1; min-height: 0; }
+
+  /* ── configure pane ── */
+  #pane-cfg {
+    flex-direction: column; padding: 28px 40px; overflow-y: auto;
+  }
+  .form-section { max-width: 440px; }
+  .form-group { margin-bottom: 14px; }
+  .form-group label {
+    display: block; color: var(--muted); font-size: 11px; margin-bottom: 4px;
+  }
+  .form-group select, .form-group input[type=number] {
+    width: 100%; background: var(--panel); border: 1px solid var(--border);
+    color: var(--text); padding: 6px 8px; border-radius: 4px; font: inherit;
+    appearance: auto;
+  }
+  .form-row { display: flex; gap: 12px; }
+  .form-row .form-group { flex: 1; }
+  #run-btn {
+    background: #2563eb; color: #fff; border: none;
+    padding: 8px 22px; border-radius: 4px; cursor: pointer; font: inherit;
+    margin-top: 6px;
+  }
+  #run-btn:hover:not(:disabled) { background: #1d4ed8; }
+  #run-btn:disabled { background: var(--border); color: var(--muted); cursor: default; }
+
+  /* ── session pane ── */
+  #pane-ses {
+    display: none; flex-direction: row;
+  }
+  #ses-sidebar {
+    width: 190px; flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  #ses-sidebar-top {
+    padding: 8px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    display: flex; gap: 6px; align-items: center;
+  }
+  #ses-sidebar-top select {
+    flex: 1; min-width: 0;
+    background: var(--panel); border: 1px solid var(--border);
+    color: var(--text); padding: 4px 6px; border-radius: 3px; font: inherit;
+    font-size: 11px;
+  }
+  #del-btn {
+    flex-shrink: 0;
+    background: none; border: 1px solid var(--border); border-radius: 3px;
+    color: var(--muted); cursor: pointer; font: inherit; font-size: 12px;
+    padding: 3px 6px; line-height: 1;
+  }
+  #del-btn:hover { color: var(--red); border-color: var(--red); }
+  #rollout-list { flex: 1; overflow-y: auto; padding: 6px; }
+  .ritem {
+    padding: 4px 6px; margin: 1px 0; border-radius: 3px;
+    display: flex; align-items: center; gap: 6px; font-size: 11px;
+  }
+  .ritem a { color: inherit; text-decoration: none; }
+  .ritem a:hover { text-decoration: underline; }
+  .ritem.pending { color: var(--muted); }
+  .ritem.running { color: var(--yellow); }
+  .ritem.done    { color: var(--green); }
+  .ritem.error   { color: var(--red); }
+  .ritem .rname  { flex: 1; }
+  .ritem .rtag   { font-size: 10px; color: var(--muted); }
+
+  /* ── aggregate content ── */
+  #ses-main {
+    flex: 1; overflow-y: auto; padding: 12px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .agg-row { display: flex; gap: 8px; }
+  .agg-chart {
+    flex: 1; min-width: 0; height: 200px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+  }
+  #stat-bar {
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    padding: 8px 10px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 4px; font-size: 11px;
+  }
+  .stat-item { display: flex; flex-direction: column; gap: 2px; }
+  .stat-label { color: var(--muted); font-size: 10px; }
+  .stat-val { color: var(--text); font-size: 13px; font-weight: 600; }
+
+  .rdetail {
+    font-size: 10px; color: var(--yellow);
+    padding: 1px 6px 3px 22px; line-height: 1.3;
+  }
+
+  #session-tags {
+    flex-shrink: 0; border-top: 1px solid var(--border);
+    padding: 8px; display: flex; flex-direction: column; gap: 3px;
+  }
+  #session-tags .strow { display: flex; gap: 6px; font-size: 10px; line-height: 1.4; }
+  #session-tags .stkey { color: var(--muted); flex-shrink: 0; width: 64px; }
+  #session-tags .stval { color: var(--text); word-break: break-word; }
+
+  /* ── empty states ── */
+  .empty { color: var(--muted); padding: 20px; font-size: 11px; }
+
+  /* ── view switcher ── */
+  #ses-main { padding: 0; }
+  #view-tabs {
+    flex-shrink: 0; display: flex; gap: 0; align-items: center;
+    border-bottom: 1px solid var(--border); padding: 0 8px;
+  }
+  .view-btn {
+    background: none; border: none; border-bottom: 2px solid transparent;
+    color: var(--muted); cursor: pointer; font: inherit; font-size: 11px;
+    padding: 6px 12px; transition: color .15s;
+  }
+  .view-btn:hover { color: var(--text); }
+  .view-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+  .view {
+    flex: 1; min-height: 0; overflow-y: auto; padding: 12px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  #view-rollout { padding: 0; }
+  #rollout-frame { flex: 1; width: 100%; border: none; background: var(--bg); }
+
+  /* ── video grid (top of the Aggregate view) ── */
+  #video-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px; align-content: start;
+  }
+  #video-grid:empty { display: none; }
+  .vtile {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+    overflow: hidden;
+  }
+  .vtile.done { cursor: pointer; }
+  .vtile .vframe {
+    position: relative; width: 100%; aspect-ratio: 4 / 3; background: #000;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .vtile .vframe img {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; display: none;
+  }
+  .vtile.ready .vframe img { display: block; }
+  .vstatus { color: var(--muted); font-size: 10px; text-align: center; padding: 6px; }
+  .vtile.running .vstatus { color: var(--yellow); }
+  .vtile.error   .vstatus { color: var(--red); }
+  .vtile .vlabel {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 4px 8px; font-size: 11px; color: var(--text);
+  }
+  .vtile .vlabel .vtag { color: var(--muted); font-size: 10px; }
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <span class="logo"></span>
+  <button class="tab-btn active" id="tab-cfg" onclick="switchTab('cfg')">Configure</button>
+  <button class="tab-btn" id="tab-ses" onclick="switchTab('ses')">Session</button>
+  <span id="session-info"></span>
+</div>
+
+<!-- Configure pane -->
+<div class="pane" id="pane-cfg">
+  <div class="form-section">
+    <div class="form-group">
+      <label>Policy</label>
+      <select id="run-sel" onchange="onRunChange()">
+        <option value="">Loading…</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Checkpoint</label>
+      <select id="ckpt-sel">
+        <option value="latest">latest</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Deterministic rollouts</label>
+        <input type="number" id="n-det" value="3" min="0" max="20">
+      </div>
+      <div class="form-group">
+        <label>Stochastic rollouts</label>
+        <input type="number" id="n-sto" value="3" min="0" max="20">
+      </div>
+    </div>
+    <button id="run-btn" onclick="onRunClick()">▶ Run Analysis</button>
+  </div>
+</div>
+
+<!-- Session pane -->
+<div class="pane" id="pane-ses">
+  <div id="ses-sidebar">
+    <div id="ses-sidebar-top">
+      <select id="session-sel" onchange="onSessionChange()">
+        <option value="">No sessions</option>
+      </select>
+      <button id="del-btn" title="Delete session" onclick="onDeleteClick()">🗑</button>
+    </div>
+    <div id="rollout-list"><div class="empty">No rollouts</div></div>
+    <div id="session-tags"></div>
+  </div>
+  <div id="ses-main">
+    <div id="view-tabs">
+      <button class="view-btn active" data-view="aggregate" onclick="showView('aggregate')">Aggregate</button>
+      <button class="view-btn" id="view-btn-rollout" data-view="rollout" style="display:none" onclick="showView('rollout')"></button>
+    </div>
+
+    <div class="view" id="view-aggregate">
+      <div class="empty" id="agg-empty">Start a session to see aggregate stats.</div>
+      <div id="video-grid"></div>
+      <div id="stat-bar" style="display:none"></div>
+      <div class="agg-row" style="display:none" id="reward-row">
+        <div class="agg-chart" id="reward-chart"></div>
+      </div>
+      <div class="agg-row" style="display:none" id="reward-terms-row">
+        <div class="agg-chart" id="reward-terms-chart"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-rollout" style="display:none">
+      <iframe id="rollout-frame" title="rollout analysis"></iframe>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── constants ─────────────────────────────────────────────────────────────────
+const COLORS = [
+  '#60a5fa','#34d399','#fbbf24','#f87171','#a78bfa','#fb923c',
+  '#4ade80','#38bdf8','#e879f9','#facc15','#f472b6','#67e8f9',
+];
+const plotCfg = {responsive: true, displayModeBar: false};
+
+function basePlotLayout(title) {
+  return {
+    title: {text: title, font: {size: 11, color: '#9ca3af'}},
+    paper_bgcolor: '#1f2937', plot_bgcolor: '#111827',
+    font: {color: '#f3f4f6', size: 10},
+    margin: {l: 44, r: 8, t: 28, b: 36},
+    xaxis: {title: 't (s)', gridcolor: '#374151', titlefont: {size: 10}},
+    yaxis: {gridcolor: '#374151'},
+    legend: {font: {size: 9}},
+    showlegend: true,
+  };
+}
+
+// ── state ─────────────────────────────────────────────────────────────────────
+let currentSession = null;   // {session_id, run, rollouts, n_done, n_total}
+let rolloutData = {};        // {rollout_name: data.json contents}
+let evtSource = null;        // EventSource for live session updates
+let knownSessions = [];      // list[dict] from /api/sessions
+let currentView = 'aggregate';   // 'aggregate' | 'rollout'
+let openRolloutName = null;      // rollout shown in the embedded iframe
+const videoAnims = {};           // rollout_name -> {timer, idx, T, blobs}
+
+// Resize every aggregate Plotly chart — needed because Plotly measures the
+// container at creation time, and a chart drawn while its tab/view was hidden
+// (zero size) otherwise stays blank until a window resize.
+function resizeAggregateCharts() {
+  const ids = ['reward-chart', 'reward-terms-chart'];
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (el && el.data) { try { Plotly.Plots.resize(el); } catch (_) {} }
+  }
+}
+
+// ── view switching (within the session pane) ────────────────────────────────────
+function showView(view) {
+  currentView = view;
+  for (const el of document.querySelectorAll('.view-btn')) {
+    el.classList.toggle('active', el.dataset.view === view);
+  }
+  document.getElementById('view-aggregate').style.display = view === 'aggregate' ? 'flex' : 'none';
+  document.getElementById('view-rollout').style.display   = view === 'rollout'   ? 'flex' : 'none';
+  if (view === 'aggregate') {
+    renderVideoGrid();
+    setTimeout(resizeAggregateCharts, 50);
+  }
+  // Previews keep looping from cached blobs even when hidden — cheap (no network),
+  // and avoids re-fetching every frame when you switch back. They're only torn
+  // down on a session switch (resetSessionViews → destroyVideoAnims).
+}
+
+function openRollout(name) {
+  if (!currentSession) return;
+  openRolloutName = name;
+  const btn = document.getElementById('view-btn-rollout');
+  btn.style.display = '';
+  btn.textContent = name;
+  const frame = document.getElementById('rollout-frame');
+  const src = `/sessions/${currentSession.session_id}/${name}/`;
+  if (frame.getAttribute('src') !== src) frame.setAttribute('src', src);
+  showView('rollout');
+}
+
+// ── video grid ──────────────────────────────────────────────────────────────────
+// One reserved tile per rollout, created up front. Each fills with a looping
+// preview once its rollout completes. Frames are preloaded once into in-memory
+// blob URLs so playback never re-hits the network (smooth even over SSH).
+function destroyVideoAnims() {
+  for (const k of Object.keys(videoAnims)) {
+    const a = videoAnims[k];
+    if (a.timer) clearInterval(a.timer);
+    if (a.blobs) a.blobs.forEach(u => { if (u && u.startsWith('blob:')) URL.revokeObjectURL(u); });
+    delete videoAnims[k];
+  }
+}
+// Back-compat alias (used by reset paths).
+const stopAllVideoAnims = destroyVideoAnims;
+
+const STATUS_TEXT = {pending: 'queued', running: 'running…', error: 'failed', done: ''};
+
+// Pre-order tiles so det/sto of the same seed sit next to each other: group by
+// seed (parsed from the `{det,sto}_<seed>` name), det before sto within a seed.
+// Names without a parseable seed keep their original relative order at the end.
+function orderedRollouts(rollouts) {
+  return rollouts
+    .map((r, i) => {
+      const m = /_(\d+)$/.exec(r.name);
+      return {r, i, seed: m ? +m[1] : Infinity, det: r.deterministic ? 0 : 1};
+    })
+    .sort((a, b) =>
+      a.seed - b.seed || a.det - b.det || a.i - b.i)
+    .map(x => x.r);
+}
+
+function renderVideoGrid() {
+  if (!currentSession) return;
+  const grid = document.getElementById('video-grid');
+  const sid = currentSession.session_id;
+  const rollouts = orderedRollouts(currentSession.rollouts);
+
+  if (rollouts.length === 0) {
+    destroyVideoAnims();
+    grid.innerHTML = '';   // empty grid is hidden via #video-grid:empty
+    return;
+  }
+
+  for (const r of rollouts) {
+    // Reserve the tile up front (in session order), regardless of status.
+    let tile = document.getElementById(`vtile-${r.name}`);
+    if (!tile) {
+      tile = document.createElement('div');
+      tile.id = `vtile-${r.name}`;
+      const tag = r.deterministic ? 'det' : 'sto';
+      tile.innerHTML = `
+        <div class="vframe"><img alt="${r.name}"><div class="vstatus"></div></div>
+        <div class="vlabel"><span>${r.name}</span><span class="vtag">${tag}</span></div>`;
+      grid.appendChild(tile);
+    }
+
+    // Reflect current status on the placeholder (preserve 'ready' once the
+    // preview is playing, so re-renders don't hide the video).
+    const ready = videoAnims[r.name] && videoAnims[r.name].blobs ? ' ready' : '';
+    tile.className = 'vtile ' + r.status + ready;
+    const statusEl = tile.querySelector('.vstatus');
+    statusEl.textContent = r.detail
+      || (r.status === 'error' ? (r.error || 'failed').slice(0, 60) : STATUS_TEXT[r.status] || '');
+    tile.onclick = r.status === 'done' ? () => openRollout(r.name) : null;
+
+    // Once done and its data is available, preload frames + start the loop.
+    if (r.status === 'done' && !videoAnims[r.name] && rolloutData[r.name]) {
+      startTilePlayback(sid, r, tile);
+    }
+  }
+}
+
+async function startTilePlayback(sid, r, tile) {
+  const data = rolloutData[r.name];
+  const T = data && data.meta ? data.meta.T : 0;
+  const dt = data && data.meta ? data.meta.dt : 0.04;
+  if (!T) return;
+
+  // Reserve the slot immediately so we don't double-load on the next render.
+  const anim = {idx: 0, T, timer: null, blobs: null};
+  videoAnims[r.name] = anim;
+
+  const url = i => `/sessions/${sid}/${r.name}/frames/frame_${String(i).padStart(4, '0')}.png`;
+  let blobs;
+  try {
+    blobs = await Promise.all(
+      Array.from({length: T}, (_, i) =>
+        fetch(url(i)).then(res => res.blob()).then(b => URL.createObjectURL(b)))
+    );
+  } catch (_) {
+    blobs = Array.from({length: T}, (_, i) => url(i));  // fallback: stream directly
+  }
+  // Session may have been switched while frames were loading.
+  if (videoAnims[r.name] !== anim) {
+    blobs.forEach(u => { if (u && u.startsWith('blob:')) URL.revokeObjectURL(u); });
+    return;
+  }
+  anim.blobs = blobs;
+
+  const img = tile.querySelector('img');
+  img.src = blobs[0];
+  tile.classList.add('ready');
+  const period = Math.max(33, Math.round(dt * 1000));   // real-time, capped at 30fps
+  anim.timer = setInterval(() => {
+    anim.idx = (anim.idx + 1) % anim.T;
+    img.src = anim.blobs[anim.idx];
+  }, period);
+}
+
+// ── tab switching ─────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('tab-cfg').classList.toggle('active', tab === 'cfg');
+  document.getElementById('tab-ses').classList.toggle('active', tab === 'ses');
+  document.getElementById('pane-cfg').style.display = tab === 'cfg' ? '' : 'none';
+  document.getElementById('pane-ses').style.display = tab === 'ses' ? 'flex' : 'none';
+  if (tab === 'ses' && currentView === 'aggregate') {
+    setTimeout(resizeAggregateCharts, 50);
+  }
+}
+
+// ── init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  // Read hash first so tab switch is immediate — don't wait on data fetches.
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const sid = hash.get('sid');
+  if (sid) switchTab('ses');
+
+  await loadPolicies();
+  await refreshSessionList();
+
+  if (sid) {
+    await loadSession(sid);
+    startStream();
+  } else if (knownSessions.length > 0) {
+    await loadSession(knownSessions[0].session_id);
+  }
+}
+
+// Handle back-link navigation from rollout pages in the same tab (no full reload).
+window.addEventListener('hashchange', async () => {
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const sid = hash.get('sid');
+  if (!sid) return;
+  stopStream();
+  rolloutData = {};
+  resetSessionViews();
+  switchTab('ses');
+  await refreshSessionList();
+  await loadSession(sid);
+  startStream();
+});
+
+// ── configure tab ─────────────────────────────────────────────────────────────
+async function loadPolicies() {
+  const policies = await fetch('/api/policies').then(r => r.json());
+  const sel = document.getElementById('run-sel');
+  const byEnv = {};
+  for (const p of policies) {
+    if (!byEnv[p.env]) byEnv[p.env] = [];
+    byEnv[p.env].push(p);
+  }
+  sel.innerHTML = '<option value="">— select policy —</option>';
+  for (const env of Object.keys(byEnv).sort()) {
+    const og = document.createElement('optgroup');
+    og.label = env;
+    for (const r of byEnv[env]) {
+      const opt = document.createElement('option');
+      opt.value = r.name;
+      // Show suffix if present (last dash-segment when it contains underscore)
+      const parts = r.name.split('-');
+      const suffix = parts[parts.length - 1];
+      opt.textContent = suffix.includes('_') ? `${r.name.substring(0, r.name.lastIndexOf('-' + suffix))}  [${suffix}]` : r.name;
+      og.appendChild(opt);
+    }
+    sel.appendChild(og);
+  }
+}
+
+async function onRunChange() {
+  const run = document.getElementById('run-sel').value;
+  if (!run) return;
+  const steps = await fetch(`/api/checkpoints?run=${encodeURIComponent(run)}`).then(r => r.json());
+  const sel = document.getElementById('ckpt-sel');
+  sel.innerHTML = '<option value="latest">latest</option>';
+  for (const s of [...steps].reverse()) {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = `step ${parseInt(s).toLocaleString()}`;
+    sel.appendChild(opt);
+  }
+}
+
+async function onRunClick() {
+  const run = document.getElementById('run-sel').value;
+  const ckpt = document.getElementById('ckpt-sel').value;
+  const nDet = parseInt(document.getElementById('n-det').value) || 0;
+  const nSto = parseInt(document.getElementById('n-sto').value) || 0;
+  if (!run || nDet + nSto === 0) return;
+
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  btn.textContent = 'Starting…';
+
+  try {
+    const resp = await fetch('/api/sessions', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({run, checkpoint_step: ckpt || 'latest', n_det: nDet, n_sto: nSto}),
+    });
+    const {session_id} = await resp.json();
+    rolloutData = {};
+    window.location.hash = `sid=${session_id}`;
+    await refreshSessionList();
+    await loadSession(session_id);
+    switchTab('ses');
+    startStream();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '▶ Run Analysis';
+  }
+}
+
+// ── session management ────────────────────────────────────────────────────────
+async function refreshSessionList() {
+  knownSessions = await fetch('/api/sessions').then(r => r.json());
+  const sel = document.getElementById('session-sel');
+  sel.innerHTML = knownSessions.length === 0
+    ? '<option value="">No sessions</option>'
+    : knownSessions.map(s => {
+        const label = s.run.split('-').pop() || s.session_id;
+        const done = `${s.n_done}/${s.n_total}`;
+        return `<option value="${s.session_id}">${label} (${done})</option>`;
+      }).join('');
+  if (currentSession) {
+    sel.value = currentSession.session_id;
+  }
+}
+
+async function onSessionChange() {
+  const sid = document.getElementById('session-sel').value;
+  if (!sid) return;
+  stopStream();
+  rolloutData = {};
+  resetSessionViews();
+  window.location.hash = `sid=${sid}`;
+  await loadSession(sid);
+  startStream();
+}
+
+async function onDeleteClick() {
+  const sid = currentSession && currentSession.session_id;
+  if (!sid) return;
+  const label = knownSessions.find(s => s.session_id === sid)
+    ? document.getElementById('session-sel').options[document.getElementById('session-sel').selectedIndex].text
+    : sid;
+  if (!confirm(`Delete session "${label}"?\n\nThis removes all rollout data on disk.`)) return;
+
+  await fetch(`/api/sessions/${sid}`, {method: 'DELETE'});
+  stopStream();
+  currentSession = null;
+  rolloutData = {};
+  window.location.hash = '';
+  resetSessionViews();
+  document.getElementById('session-info').textContent = '';
+  document.getElementById('rollout-list').innerHTML = '<div class="empty">No rollouts</div>';
+  renderAggregatePlots();
+  await refreshSessionList();
+  if (knownSessions.length > 0) {
+    await loadSession(knownSessions[0].session_id);
+    startStream();
+  }
+}
+
+// Reset the main-pane views when switching to a different session.
+function resetSessionViews() {
+  stopAllVideoAnims();
+  document.getElementById('video-grid').innerHTML = '';
+  document.getElementById('rollout-frame').removeAttribute('src');
+  openRolloutName = null;
+  document.getElementById('view-btn-rollout').style.display = 'none';
+  document.getElementById('session-tags').innerHTML = '';
+  showView('aggregate');
+}
+
+async function loadSession(sid) {
+  const data = await fetch(`/api/sessions/${sid}?t=${Date.now()}`).then(r => r.json()).catch(() => null);
+  if (!data) return;
+  currentSession = data;
+
+  document.getElementById('session-info').textContent =
+    `${data.run.split('-').pop() || data.run}  ·  ${data.n_done}/${data.n_total} done`;
+  document.getElementById('session-sel').value = sid;
+
+  renderRolloutList(data);
+  await fetchCompletedData();
+  renderSessionTags(data);
+  renderVideoGrid();        // before plots: must not be blocked if plotting throws
+  renderAggregatePlots();
+}
+
+// ── live updates (Server-Sent Events) ───────────────────────────────────────────
+// The server pushes a fresh session snapshot whenever its state changes, so there
+// is no client poll loop to die, no cache to fight, and no fixed latency.
+function startStream() {
+  stopStream();
+  if (!currentSession) return;
+  const sid = currentSession.session_id;
+  evtSource = new EventSource(`/api/sessions/${sid}/stream`);
+  evtSource.onmessage = (e) => {
+    let data;
+    try { data = JSON.parse(e.data); } catch (_) { return; }
+    applySessionUpdate(data);
+  };
+  // EventSource reconnects automatically on error; nothing to do here.
+}
+
+function stopStream() {
+  if (evtSource) { evtSource.close(); evtSource = null; }
+}
+
+let _terminalRefreshed = false;
+async function applySessionUpdate(data) {
+  if (!data || !currentSession || data.session_id !== currentSession.session_id) return;
+  if (data.deleted) { stopStream(); return; }
+
+  currentSession = data;
+  document.getElementById('session-info').textContent =
+    `${data.run.split('-').pop() || data.run}  ·  ${data.n_done}/${data.n_total} done`;
+  renderRolloutList(data);
+
+  const prevDone = Object.keys(rolloutData).length;
+  await fetchCompletedData();
+  // Refresh the grid first (and unconditionally) so placeholder statuses update
+  // live and previews start the moment a rollout finishes — and so a plotting
+  // error can never prevent the videos from rendering.
+  renderVideoGrid();
+  if (Object.keys(rolloutData).length !== prevDone) {
+    renderSessionTags(data);
+    renderAggregatePlots();
+  }
+
+  // Refresh the session dropdown once, when everything is terminal.
+  const nTerminal = data.rollouts.filter(
+    r => r.status === 'done' || r.status === 'error'
+  ).length;
+  if (data.n_total > 0 && nTerminal === data.n_total) {
+    if (!_terminalRefreshed) { _terminalRefreshed = true; refreshSessionList(); }
+  } else {
+    _terminalRefreshed = false;
+  }
+}
+
+// ── rollout list ──────────────────────────────────────────────────────────────
+function renderRolloutList(session) {
+  const icons = {pending: '○', running: '●', done: '✓', error: '✗'};
+  const sid = session.session_id;
+  const list = document.getElementById('rollout-list');
+
+  const nRunning = session.rollouts.filter(r => r.status === 'running').length;
+  const nPending = session.rollouts.filter(r => r.status === 'pending').length;
+  const nError   = session.rollouts.filter(r => r.status === 'error').length;
+  let statusLine = '';
+  if (nRunning > 0 || nPending > 0) {
+    const parts = [];
+    if (nRunning > 0) parts.push(`<span style="color:var(--yellow)">${nRunning} running</span>`);
+    if (nPending > 0) parts.push(`<span>${nPending} queued</span>`);
+    if (nError   > 0) parts.push(`<span style="color:var(--red)">${nError} failed</span>`);
+    statusLine = `<div style="font-size:10px;color:var(--muted);padding:2px 6px 6px">${parts.join(' · ')}</div>`;
+  } else if (nError > 0 && session.n_done === 0) {
+    statusLine = `<div style="font-size:10px;color:var(--red);padding:2px 6px 6px">all ${nError} rollouts failed</div>`;
+  }
+
+  list.innerHTML = statusLine + session.rollouts.map(r => {
+    const nameEl = r.status === 'done'
+      ? `<a href="javascript:void(0)" onclick="openRollout('${r.name}')" class="rname">${r.name}</a>`
+      : `<span class="rname">${r.name}</span>`;
+    const tag = r.deterministic ? 'det' : 'sto';
+    const detail = r.detail
+      ? `<div class="rdetail">${r.detail}</div>`
+      : (r.status === 'error' && r.error
+          ? `<div class="rdetail" style="color:var(--red)">${r.error.slice(0, 80)}</div>`
+          : '');
+    return `<div class="ritem-wrap">
+      <div class="ritem ${r.status}">
+        <span>${icons[r.status] || '?'}</span>${nameEl}
+        <span class="rtag">${tag}</span>
+      </div>${detail}
+    </div>`;
+  }).join('') || '<div class="empty">No rollouts</div>';
+}
+
+// ── session-shared tags (sidebar) ───────────────────────────────────────────────
+// These are identical across all rollouts in a session (env, checkpoint, …),
+// so we show them once in the sidebar rather than per-rollout.
+function renderSessionTags(session) {
+  const el = document.getElementById('session-tags');
+  if (!session) { el.innerHTML = ''; return; }
+
+  const env = session.run.split(/-\d{8}-/)[0] || session.run;
+
+  // Prefer values from a completed rollout's meta; fall back to session fields.
+  const meta = Object.values(rolloutData).find(d => d && d.meta);
+  let ckpt = session.checkpoint_step;
+  if ((!ckpt || ckpt === 'latest') && meta) {
+    ckpt = (meta.checkpoint || '').replace(/\\/g, '/').split('/').pop();
+  }
+  const ckptNum = parseInt(ckpt, 10);
+  const ckptLabel = Number.isNaN(ckptNum) ? (ckpt || 'latest') : String(ckptNum);
+
+  // sensor_bundle comes straight from the server (read from the run's config.json),
+  // so it shows immediately — no need to wait for a rollout to finish.
+  const sensor = session.sensor_bundle || (meta && meta.sensor_bundle);
+
+  const rows = [['env', env]];
+  if (sensor) rows.push(['sensor', sensor]);
+  rows.push(['checkpoint', ckptLabel]);
+  if (meta && meta.T != null)  rows.push(['steps', String(meta.T)]);
+  if (meta && meta.dt != null) rows.push(['dt', meta.dt + ' s']);
+
+  el.innerHTML = rows.map(([k, v]) =>
+    `<div class="strow"><span class="stkey">${k}</span><span class="stval">${v}</span></div>`
+  ).join('');
+}
+
+// ── data fetching ─────────────────────────────────────────────────────────────
+async function fetchCompletedData() {
+  if (!currentSession) return;
+  const sid = currentSession.session_id;
+  const toFetch = currentSession.rollouts.filter(
+    r => r.status === 'done' && !rolloutData[r.name]
+  );
+  await Promise.all(toFetch.map(async r => {
+    try {
+      const d = await fetch(`/sessions/${sid}/${r.name}/data.json`).then(x => x.json());
+      rolloutData[r.name] = d;
+    } catch (_) {}
+  }));
+}
+
+// ── aggregate plots ───────────────────────────────────────────────────────────
+function computeBands(series) {
+  const T = series[0].length;
+  const n = series.length;
+  const means = Array.from({length: T}, (_, t) =>
+    series.reduce((sum, v) => sum + v[t], 0) / n
+  );
+  const stds = n > 1
+    ? Array.from({length: T}, (_, t) => {
+        const m = means[t];
+        return Math.sqrt(series.reduce((s, v) => s + (v[t] - m) ** 2, 0) / n);
+      })
+    : Array(T).fill(0);
+  return {
+    means,
+    upper: means.map((m, t) => m + stds[t]),
+    lower: means.map((m, t) => m - stds[t]),
+  };
+}
+
+function bandTraces(x, bands, label, color, showLegend = true) {
+  return [
+    {
+      x: [...x, ...x.slice().reverse()],
+      y: [...bands.upper, ...bands.lower.slice().reverse()],
+      fill: 'toself', fillcolor: color + '30',
+      line: {color: 'transparent'},
+      type: 'scatter', mode: 'none',
+      showlegend: false, hoverinfo: 'skip',
+    },
+    {
+      x, y: bands.means,
+      type: 'scatter', mode: 'lines',
+      name: label, line: {color, width: 1.5},
+      showlegend: showLegend,
+    },
+  ];
+}
+
+function renderAggregatePlots() {
+  // Isolate plotting so an error (e.g. Plotly failing to load, or bad data)
+  // can't abort the caller and take the video grid / live updates down with it.
+  try {
+    _renderAggregatePlots();
+  } catch (err) {
+    console.error('renderAggregatePlots failed:', err);
+    const empty = document.getElementById('agg-empty');
+    if (empty) {
+      empty.style.display = '';
+      empty.style.whiteSpace = 'pre';
+      const plotlyMissing = (typeof Plotly === 'undefined');
+      empty.textContent = plotlyMissing
+        ? 'Plotly failed to load (CDN unreachable?).\nCharts are unavailable; videos still work.'
+        : 'Plot error: ' + (err && err.message ? err.message : err);
+    }
+  }
+}
+
+function _renderAggregatePlots() {
+  const datasets = Object.values(rolloutData);
+  const n = datasets.length;
+  const empty = document.getElementById('agg-empty');
+  const statBar = document.getElementById('stat-bar');
+  const rewardRow = document.getElementById('reward-row');
+  const rewardTermsRow = document.getElementById('reward-terms-row');
+
+  if (n === 0) {
+    if (currentSession && currentSession.n_total > 0) {
+      const nDone    = currentSession.n_done;
+      const nTotal   = currentSession.n_total;
+      const nRunning = currentSession.rollouts.filter(r => r.status === 'running').length;
+      const nError   = currentSession.rollouts.filter(r => r.status === 'error').length;
+      const nPending = currentSession.rollouts.filter(r => r.status === 'pending').length;
+      const parts = [`${nDone}/${nTotal} complete`];
+      if (nRunning > 0) parts.push(`${nRunning} running`);
+      if (nPending > 0) parts.push(`${nPending} queued`);
+      if (nError > 0)   parts.push(`${nError} failed`);
+      let msg = parts.join('  ·  ');
+      if (nRunning === 0 && nPending === nTotal) {
+        msg += '\n\nLoading model and compiling… first rollout may take a minute.';
+      } else if (nRunning === 0 && nPending > 0 && nDone === 0) {
+        msg += '\n\nPrevious rollout finished, next one starting…';
+      }
+      empty.style.whiteSpace = 'pre';
+      empty.textContent = msg;
+    } else {
+      empty.style.whiteSpace = '';
+      empty.textContent = 'Start a session to see aggregate stats.';
+    }
+    empty.style.display = '';
+    statBar.style.display = 'none';
+    rewardRow.style.display = 'none';
+    rewardTermsRow.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  statBar.style.display = 'flex';
+  rewardRow.style.display = '';
+
+  const T = datasets[0].meta.T;
+  const dt = datasets[0].meta.dt;
+  const tArr = Array.from({length: T}, (_, i) => +(i * dt).toFixed(4));
+
+  // ── stat bar ──
+  const totals = datasets.map(d => d.rewards.total.reduce((s, v) => s + v, 0));
+  const meanTotal = totals.reduce((s, v) => s + v, 0) / n;
+  const stdTotal = n > 1
+    ? Math.sqrt(totals.reduce((s, v) => s + (v - meanTotal) ** 2, 0) / n)
+    : 0;
+
+  // Success: look for a 'success' key in reward term_keys
+  let successHtml = '';
+  const tkArr = datasets[0].rewards.term_keys;
+  const successIdx = tkArr.findIndex(k => k.includes('success'));
+  if (successIdx >= 0 && datasets[0].dof) {
+    // success is not stored per-term in data.json right now, skip
+  }
+
+  statBar.innerHTML = `
+    <div class="stat-item">
+      <span class="stat-label">rollouts</span>
+      <span class="stat-val">${n}</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">episode reward (mean)</span>
+      <span class="stat-val">${meanTotal.toFixed(2)}</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">episode reward (std)</span>
+      <span class="stat-val">${stdTotal.toFixed(2)}</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">episode reward (min / max)</span>
+      <span class="stat-val">${Math.min(...totals).toFixed(2)} / ${Math.max(...totals).toFixed(2)}</span>
+    </div>
+  `;
+
+  // ── reward over time ──
+  const rewardSeries = datasets.map(d => d.rewards.total);
+  const rewardBands = computeBands(rewardSeries);
+  Plotly.react(
+    'reward-chart',
+    bandTraces(tArr, rewardBands, 'reward', COLORS[0], false),
+    {...basePlotLayout(`Total Reward per step  (n=${n})`), showlegend: false},
+    plotCfg,
+  );
+
+  // ── per-reward-term distribution across rollouts (mean ± std band per term) ──
+  // Same visual style as the pre-squash distribution plots: one shaded band +
+  // mean line per series, here one series per reward term.
+  const termKeys = datasets[0].rewards.term_keys || [];
+  const haveTerms = datasets.every(d => d.rewards && Array.isArray(d.rewards.terms))
+    && termKeys.length > 0;
+  if (haveTerms) {
+    rewardTermsRow.style.display = '';
+    const termTraces = termKeys.flatMap((key, k) => {
+      const series = datasets.map(d => d.rewards.terms.map(row => row[k]));
+      const label = key.startsWith('reward/') ? key.slice(7) : key;
+      return bandTraces(tArr, computeBands(series), label, COLORS[k % COLORS.length]);
+    });
+    Plotly.react(
+      'reward-terms-chart',
+      termTraces,
+      basePlotLayout(`Reward terms per step  (mean ± std, n=${n})`),
+      plotCfg,
+    );
+    // Toggling a term's line in the legend should also hide/show its band.
+    // Traces are laid out [band, line] per term, so the band for the clicked
+    // line (curveNumber 2k+1) is the trace right before it (2k).
+    const rtDiv = document.getElementById('reward-terms-chart');
+    if (!rtDiv._bandToggleWired) {
+      rtDiv._bandToggleWired = true;
+      rtDiv.on('plotly_legendclick', (ev) => {
+        const band = ev.curveNumber - 1;
+        if (band < 0) return true;
+        const lineVisible = rtDiv.data[ev.curveNumber].visible !== 'legendonly';
+        Plotly.restyle(rtDiv, {visible: lineVisible ? 'legendonly' : true}, [band]);
+        return true;  // keep Plotly's default toggle on the clicked line
+      });
+    }
+  } else {
+    rewardTermsRow.style.display = 'none';
+  }
+
+  // Charts may have been (re)created while the view was hidden; ensure they size.
+  if (currentView === 'aggregate') setTimeout(resizeAggregateCharts, 0);
+}
+
+// ── start ─────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

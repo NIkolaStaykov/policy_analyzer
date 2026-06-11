@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Policy Analyzer</title>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
+  <style>
+    :root {
+      --bg:     #111827;
+      --panel:  #1f2937;
+      --border: #374151;
+      --text:   #f3f4f6;
+      --muted:  #9ca3af;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font: 12px/1.4 ui-monospace, monospace;
+      height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    #header {
+      flex-shrink: 0; padding: 6px 14px;
+      background: var(--panel); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    }
+    .tag { background: #374151; padding: 2px 8px; border-radius: 3px; font-size: 11px; }
+
+    #body { display: flex; flex: 1; min-height: 0; }
+
+    #left {
+      width: 500px; flex-shrink: 0; padding: 10px;
+      display: flex; flex-direction: column; align-items: center;
+      border-right: 1px solid var(--border); overflow-y: auto;
+    }
+    #frame-img {
+      display: block; width: 100%; max-width: 480px;
+      border-radius: 4px; border: 1px solid var(--border);
+    }
+    #slider-wrap { width: 100%; max-width: 480px; margin-top: 8px; }
+    #slider { width: 100%; accent-color: #ef4444; cursor: pointer; }
+    #time-label { text-align: center; color: var(--muted); font-size: 11px; margin-top: 4px; }
+    #load-status { text-align: center; color: #fbbf24; font-size: 11px; margin-top: 4px; min-height: 16px; }
+
+    #right { flex: 1; overflow-y: auto; padding: 8px 12px; }
+
+    details {
+      border: 1px solid var(--border); border-radius: 5px;
+      margin-bottom: 6px; overflow: hidden;
+    }
+    summary {
+      padding: 7px 12px; cursor: pointer;
+      background: var(--panel); font-size: 11px;
+      user-select: none; list-style: none;
+      display: flex; align-items: center; gap: 8px;
+    }
+    summary:hover { background: #273549; }
+    summary::before {
+      content: '▶'; font-size: 9px; color: var(--muted);
+      transition: transform 0.12s; flex-shrink: 0;
+    }
+    details[open] > summary::before { transform: rotate(90deg); }
+
+    .group-content { padding: 4px 6px 6px; }
+    .chart-div { width: 100%; cursor: crosshair; }
+    .chart-row { display: flex; gap: 4px; }
+    .chart-row .chart-div { flex: 1; min-width: 0; width: auto; }
+    .section-label {
+      font-size: 10px; color: var(--muted); letter-spacing: 0.12em;
+      padding: 10px 4px 3px; text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <div id="header"><span id="title" style="color:var(--muted)">Loading…</span></div>
+  <div id="body">
+    <div id="left">
+      <img id="frame-img" src="" alt="env frame">
+      <div id="slider-wrap">
+        <input id="slider" type="range" min="0" max="0" value="0" step="1" disabled>
+        <div id="time-label">t = 0.000 s  (frame 0)</div>
+        <div id="load-status">Loading frames…</div>
+      </div>
+    </div>
+    <div id="right"></div>
+  </div>
+
+  <script>
+  'use strict';
+
+  const COLORS = ['#60a5fa','#f87171','#34d399','#a78bfa','#fbbf24','#22d3ee','#fb923c','#e879f9'];
+
+  let D = null;
+  let frameBlobs = [];   // blob: URLs, one per frame — loaded before slider is enabled
+  let currentIdx = 0;
+  const BASE_SHAPES = {};   // divId -> static shapes (no vline)
+  let dragDiv = null;       // chart div currently being dragged
+
+  // Embedded inside the session view's iframe? Then the parent shows the
+  // session tags + navigation, so we hide our own header/back-link.
+  const EMBEDDED = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+
+  // ── session back-link (only when opened standalone, not embedded) ─────────
+  if (!EMBEDDED) {
+    const parts = window.location.pathname.split('/');
+    const si = parts.indexOf('sessions');
+    if (si !== -1) {
+      const sid = parts[si + 1];
+      const a = document.createElement('a');
+      a.href = `/#sid=${sid}`;
+      a.textContent = '← Session';
+      a.style.cssText = 'position:fixed;top:8px;left:8px;color:#60a5fa;font-size:11px;z-index:200;text-decoration:none;background:#1f2937;padding:2px 8px;border-radius:3px;border:1px solid #374151';
+      document.body.appendChild(a);
+    }
+  }
+
+  // ── data load ──────────────────────────────────────────────────────────────
+
+  fetch('./data.json').then(r => r.json()).then(d => { D = d; init(); });
+
+  // ── init ───────────────────────────────────────────────────────────────────
+
+  function init() {
+    const m = D.meta;
+    if (EMBEDDED) {
+      // Session view (parent) renders the shared tags; keep the iframe clean.
+      document.getElementById('header').style.display = 'none';
+    } else {
+      const ckptRaw = (m.checkpoint || '').replace(/\\/g, '/').split('/').pop() || '?';
+      const ckptNum = parseInt(ckptRaw, 10);
+      const ckptLabel = Number.isNaN(ckptNum) ? ckptRaw : String(ckptNum);
+      document.getElementById('title').innerHTML =
+        tag(m.env_name) + tag(m.sensor_bundle) + tag('checkpoint: ' + ckptLabel) +
+        tag('T=' + m.T) + tag('dt=' + m.dt + 's');
+    }
+
+    // Show first frame immediately while the rest load
+    document.getElementById('frame-img').src = frameUrl(0);
+
+    const slider = document.getElementById('slider');
+    slider.max = m.T - 1;
+    slider.addEventListener('input', onSlider);
+
+    const right = document.getElementById('right');
+
+    sectionLabel(right, 'Inputs');
+    D.input_groups.forEach((g, gi) => buildInputGroup(right, g, gi));
+
+    sectionLabel(right, 'Outputs');
+    D.output_groups.forEach((g, gi) => buildGroup(right, g, gi));
+
+    // Global drag handlers (mousemove / mouseup follow the cursor anywhere)
+    document.addEventListener('mousemove', onGlobalMouseMove);
+    document.addEventListener('mouseup', () => { dragDiv = null; });
+
+    // Preload all frames as blob: URLs in the background
+    preloadFrames(m.T);
+  }
+
+  function tag(s) { return '<span class="tag">' + s + '</span>'; }
+
+  function frameUrl(idx) {
+    return 'frames/frame_' + String(idx).padStart(4, '0') + '.png';
+  }
+
+  // ── frame preloading ───────────────────────────────────────────────────────
+
+  async function preloadFrames(T) {
+    frameBlobs = new Array(T);
+    const status = document.getElementById('load-status');
+    const BATCH = 8;
+
+    for (let i = 0; i < T; i += BATCH) {
+      await Promise.all(
+        Array.from({ length: Math.min(BATCH, T - i) }, async (_, j) => {
+          const idx = i + j;
+          const resp = await fetch(frameUrl(idx));
+          const blob = await resp.blob();
+          frameBlobs[idx] = URL.createObjectURL(blob);
+          // Swap the live frame if it's already showing this server URL
+          if (idx === currentIdx) {
+            document.getElementById('frame-img').src = frameBlobs[idx];
+          }
+        })
+      );
+      if (status) status.textContent = 'Loading frames ' + Math.min(i + BATCH, T) + '/' + T + ' …';
+    }
+
+    if (status) status.textContent = '';
+    document.getElementById('slider').disabled = false;
+  }
+
+  // ── scrubbing (slider + chart drag) ───────────────────────────────────────
+
+  function syncToIdx(idx) {
+    idx = Math.max(0, Math.min(D.meta.T - 1, Math.round(idx)));
+    if (idx === currentIdx) return;
+    currentIdx = idx;
+
+    document.getElementById('slider').value = idx;
+    const t = idx * D.meta.dt;
+    document.getElementById('time-label').textContent =
+      't = ' + t.toFixed(3) + ' s  (frame ' + idx + ')';
+
+    // Use blob URL if ready, fall back to server URL
+    document.getElementById('frame-img').src = frameBlobs[idx] || frameUrl(idx);
+
+    updateVlines(t);
+  }
+
+  function onSlider(e) { syncToIdx(+e.target.value); }
+
+  function updateVlines(t) {
+    const vline = {
+      type: 'line', x0: t, x1: t, y0: 0, y1: 1,
+      xref: 'x', yref: 'paper',
+      line: { color: '#ef4444', width: 1.5 },
+    };
+    Object.entries(BASE_SHAPES).forEach(([divId, shapes]) => {
+      Plotly.relayout(divId, { shapes: shapes.concat([vline]) });
+    });
+  }
+
+  // ── chart drag ─────────────────────────────────────────────────────────────
+  // mousedown on any chart div starts a drag; mousemove (global) scrubs to that time.
+
+  function getTimeFromEvent(e, div) {
+    const layout = div._fullLayout;
+    if (!layout || !layout.xaxis || !layout._size) return null;
+    const rect = div.getBoundingClientRect();
+    const px = e.clientX - rect.left - layout._size.l;
+    if (px < 0 || px > layout._size.w) return null;
+    const t = layout.xaxis.p2l(px);
+    return Math.max(0, Math.min((D.meta.T - 1) * D.meta.dt, t));
+  }
+
+  function onChartMouseDown(e, div) {
+    if (e.button !== 0) return;
+    dragDiv = div;
+    const t = getTimeFromEvent(e, div);
+    if (t !== null) syncToIdx(Math.round(t / D.meta.dt));
+  }
+
+  function onGlobalMouseMove(e) {
+    if (!dragDiv) return;
+    const t = getTimeFromEvent(e, dragDiv);
+    if (t !== null) syncToIdx(Math.round(t / D.meta.dt));
+  }
+
+  // ── section label ──────────────────────────────────────────────────────────
+
+  function sectionLabel(container, text) {
+    const el = document.createElement('div');
+    el.className = 'section-label';
+    el.textContent = text;
+    container.appendChild(el);
+  }
+
+  // ── input group builder ────────────────────────────────────────────────────
+
+  function buildInputGroup(container, group, gi) {
+    const tArr = Array.from({ length: D.meta.T }, (_, i) => i * D.meta.dt);
+
+    const details = document.createElement('details');
+    const summary = document.createElement('summary');
+    summary.textContent = group.key + '  (' + group.elements.length + ' dims — ' + group.description + ')';
+    details.appendChild(summary);
+
+    const content = document.createElement('div');
+    content.className = 'group-content';
+
+    const divId = 'inp-g' + gi;
+    const div   = makeChartDiv(divId);
+    content.appendChild(div);
+    details.appendChild(content);
+    container.appendChild(details);
+
+    const traces = group.elements.map((el, i) => ({
+      x: tArr,
+      y: D.obs.map(row => row[el.index]),
+      name: el.label,
+      line: { color: COLORS[i % COLORS.length], width: 1.2 },
+      type: 'scatter', mode: 'lines',
+    }));
+
+    BASE_SHAPES[divId] = [];
+    Plotly.newPlot(divId, traces, chartLayout(group.key + ' — ' + group.description, []), cfg());
+    div.addEventListener('mousedown', e => onChartMouseDown(e, div), { capture: true });
+    div.on('plotly_legenddoubleclick', () => false);
+
+    details.addEventListener('toggle', () => {
+      if (details.open) Plotly.Plots.resize(div);
+    });
+  }
+
+  // ── output group builder ───────────────────────────────────────────────────
+  // Layout per group:
+  //   Row 0 (full width):  pre-squash (loc ± σ)
+  //   Row 1 (side-by-side): [command delta (rad)] | [motor target (rad)]
+  //   Row 2 (side-by-side): [target error (rad)]  | [joint pos (rad)]
+  // Rows 1-2 require D.dof.motor_targets and joint_pos in obs.
+
+  function buildGroup(container, group, gi) {
+    const tArr  = Array.from({ length: D.meta.T }, (_, i) => i * D.meta.dt);
+    const tEnd  = (D.meta.T - 1) * D.meta.dt;
+    const hasMt = D.dof.motor_targets != null;
+    const jpStart = obsGroupStart('joint_pos');
+    const show2x2 = hasMt && jpStart != null;
+
+    const details = document.createElement('details');
+    const summary = document.createElement('summary');
+    summary.textContent = group.key + '  (' + group.elements.length + ' DOFs — ' + group.description + ')';
+    details.appendChild(summary);
+
+    const content = document.createElement('div');
+    content.className = 'group-content';
+
+    // Pre-squash (full width)
+    const psId  = 'ps-g' + gi;
+    const psDiv = makeChartDiv(psId);
+    content.appendChild(psDiv);
+
+    // 2×2 rows
+    let cdDiv, mtDiv, mdDiv, jpDiv, cdId, mtId, mdId, jpId;
+    if (show2x2) {
+      const row1 = makeRow();
+      cdId = 'cd-g' + gi; cdDiv = makeChartDiv(cdId);
+      mtId = 'mt-g' + gi; mtDiv = makeChartDiv(mtId);
+      row1.appendChild(cdDiv); row1.appendChild(mtDiv);
+      content.appendChild(row1);
+
+      const row2 = makeRow();
+      mdId = 'md-g' + gi; mdDiv = makeChartDiv(mdId);
+      jpId = 'jp-g' + gi; jpDiv = makeChartDiv(jpId);
+      row2.appendChild(mdDiv); row2.appendChild(jpDiv);
+      content.appendChild(row2);
+    }
+
+    details.appendChild(content);
+    container.appendChild(details);
+
+    // ── pre-squash (loc ± σ, full width) ─────────────────────────────────
+    // Trace layout: 2*i = band, 2*i+1 = loc line
+    const psTraces = [];
+    group.elements.forEach((el, i) => {
+      const c   = COLORS[i % COLORS.length];
+      const loc = D.dof.pre_squash.map(row => row[el.index]);
+      const scl = D.dof.action_scale.map(row => row[el.index]);
+      psTraces.push({                                          // 2*i — band
+        x: tArr.concat(tArr.slice().reverse()),
+        y: loc.map((v, t) => v + scl[t]).concat(loc.map((v, t) => v - scl[t]).reverse()),
+        fill: 'toself', fillcolor: withAlpha(c, 0.12),
+        line: { width: 0 }, type: 'scatter', mode: 'none',
+        showlegend: false, hoverinfo: 'skip',
+      });
+      psTraces.push({                                          // 2*i+1 — loc line
+        x: tArr, y: loc, name: el.label,
+        line: { color: c, width: 1.5 }, type: 'scatter', mode: 'lines',
+      });
+    });
+    const sat    = D.meta.tanh_sat;
+    const psBase = [hline(0, tEnd, +sat, '#fb923c', 'dot'), hline(0, tEnd, -sat, '#fb923c', 'dot')];
+    BASE_SHAPES[psId] = psBase;
+    Plotly.newPlot(psId, psTraces, chartLayout(group.key + ' — pre-squash (loc ± σ)', psBase), cfg());
+    psDiv.addEventListener('mousedown', e => onChartMouseDown(e, psDiv), { capture: true });
+    psDiv.on('plotly_legendclick', function(ev) {
+      const doi = Math.floor(ev.curveNumber / 2);
+      const hiding = psDiv.data[ev.curveNumber].visible !== 'legendonly';
+      Plotly.restyle(psDiv, { visible: hiding ? 'legendonly' : true }, [doi * 2]);
+      return true;
+    });
+    psDiv.on('plotly_legenddoubleclick', () => false);
+
+    if (!show2x2) {
+      details.addEventListener('toggle', () => { if (details.open) Plotly.Plots.resize(psDiv); });
+      return;
+    }
+
+    // Helper: build traces with ctrl_range rails (3*i layout)
+    function railTraces(yFn) {
+      const traces = [];
+      group.elements.forEach((el, i) => {
+        const c = COLORS[i % COLORS.length];
+        traces.push({ x: tArr, y: yFn(el), name: el.label,
+          line: { color: c, width: 1.5 }, type: 'scatter', mode: 'lines' });
+        const hr = el.ctrl_range && el.ctrl_range.length === 2;
+        traces.push({ x: hr ? [tArr[0], tEnd] : [], y: hr ? [el.ctrl_range[0], el.ctrl_range[0]] : [],
+          line: { color: c, width: 0.7, dash: 'dash' }, type: 'scatter', mode: 'lines',
+          showlegend: false, hoverinfo: 'skip' });
+        traces.push({ x: hr ? [tArr[0], tEnd] : [], y: hr ? [el.ctrl_range[1], el.ctrl_range[1]] : [],
+          line: { color: c, width: 0.7, dash: 'dash' }, type: 'scatter', mode: 'lines',
+          showlegend: false, hoverinfo: 'skip' });
+      });
+      return traces;
+    }
+
+    function railLegendClick(div) {
+      div.on('plotly_legendclick', function(ev) {
+        const doi = Math.floor(ev.curveNumber / 3);
+        const hiding = div.data[ev.curveNumber].visible !== 'legendonly';
+        Plotly.restyle(div, { visible: hiding ? 'legendonly' : true }, [doi*3+1, doi*3+2]);
+        return true;
+      });
+      div.on('plotly_legenddoubleclick', () => false);
+    }
+
+    // ── command delta ─────────────────────────────────────────────────────
+    const cdTraces = group.elements.map((el, i) => ({
+      x: tArr,
+      y: D.dof.command.map(row => row[el.index]),
+      name: el.label,
+      line: { color: COLORS[i % COLORS.length], width: 1.5 },
+      type: 'scatter', mode: 'lines',
+    }));
+    BASE_SHAPES[cdId] = [];
+    Plotly.newPlot(cdId, cdTraces, chartLayout(group.key + ' — command delta (rad)', []), cfg());
+    cdDiv.addEventListener('mousedown', e => onChartMouseDown(e, cdDiv), { capture: true });
+    cdDiv.on('plotly_legenddoubleclick', () => false);
+
+    // ── motor target (absolute) ───────────────────────────────────────────
+    BASE_SHAPES[mtId] = [];
+    Plotly.newPlot(mtId, railTraces(el => D.dof.motor_targets.map(row => row[el.index])),
+      chartLayout(group.key + ' — motor target (rad)', []), cfg());
+    mtDiv.addEventListener('mousedown', e => onChartMouseDown(e, mtDiv), { capture: true });
+    railLegendClick(mtDiv);
+
+    // ── target error (motor target − joint pos) ───────────────────────────
+    const mdTraces = group.elements.map((el, i) => ({
+      x: tArr,
+      y: D.dof.motor_targets.map((row, t) => row[el.index] - D.obs[t][jpStart + el.index]),
+      name: el.label,
+      line: { color: COLORS[i % COLORS.length], width: 1.5 },
+      type: 'scatter', mode: 'lines',
+    }));
+    BASE_SHAPES[mdId] = [];
+    Plotly.newPlot(mdId, mdTraces, chartLayout(group.key + ' — target error (rad)', []), cfg());
+    mdDiv.addEventListener('mousedown', e => onChartMouseDown(e, mdDiv), { capture: true });
+    mdDiv.on('plotly_legenddoubleclick', () => false);
+
+    // ── joint pos (actual) ────────────────────────────────────────────────
+    BASE_SHAPES[jpId] = [];
+    Plotly.newPlot(jpId, railTraces(el => D.obs.map(row => row[jpStart + el.index])),
+      chartLayout(group.key + ' — joint pos (rad)', []), cfg());
+    jpDiv.addEventListener('mousedown', e => onChartMouseDown(e, jpDiv), { capture: true });
+    railLegendClick(jpDiv);
+
+    // Resize on open
+    details.addEventListener('toggle', () => {
+      if (details.open) {
+        [psDiv, cdDiv, mtDiv, mdDiv, jpDiv].forEach(d => Plotly.Plots.resize(d));
+      }
+    });
+  }
+
+  // ── helpers ────────────────────────────────────────────────────────────────
+
+  function makeChartDiv(id) {
+    const d = document.createElement('div');
+    d.id = id; d.className = 'chart-div'; d.style.height = '170px';
+    return d;
+  }
+
+  function obsGroupStart(key) {
+    const g = D.input_groups.find(g => g.key === key);
+    return g != null ? g.start : null;
+  }
+
+  function makeRow() {
+    const r = document.createElement('div');
+    r.className = 'chart-row';
+    return r;
+  }
+
+  function hline(x0, x1, y, color, dash, width) {
+    return { type: 'line', x0, x1, y0: y, y1: y, xref: 'x', yref: 'y',
+             line: { color, width: width || 1, dash } };
+  }
+
+  function chartLayout(title, shapes) {
+    return {
+      title: { text: title, font: { size: 11, color: '#e5e7eb' }, x: 0.01, xanchor: 'left' },
+      shapes,
+      dragmode: false,
+      xaxis: {
+        color: '#6b7280', gridcolor: '#374151', zeroline: false,
+        tickfont: { size: 8 }, title: { text: 't (s)', font: { size: 9 } },
+        fixedrange: true,
+      },
+      yaxis: {
+        color: '#6b7280', gridcolor: '#374151', zeroline: false,
+        tickfont: { size: 8 }, fixedrange: true,
+      },
+      legend: {
+        font: { size: 9 }, bgcolor: 'rgba(31,41,55,0.8)',
+        x: 1, xanchor: 'right', y: 1, yanchor: 'top',
+      },
+      margin: { t: 26, r: 10, b: 32, l: 42 },
+      paper_bgcolor: '#111827',
+      plot_bgcolor:  '#1f2937',
+      font: { color: '#d1d5db' },
+      height: 170,
+    };
+  }
+
+  function cfg() { return { displayModeBar: false, responsive: true }; }
+
+  function withAlpha(hex, a) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+  }
+  </script>
+</body>
+</html>
