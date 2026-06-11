@@ -1,6 +1,6 @@
 """Capture a single policy rollout from a checkpoint.
 
-Reuses the checkpoint-restore + scan machinery from experimentation/eval_runs.py,
+Reuses the checkpoint-restore + scan machinery from eval_runs.py,
 but records the policy's observation inputs and action outputs each step (which
 eval_runs does not — it only keeps data.* for video).
 
@@ -13,7 +13,6 @@ Output artifact (under analysis/<timestamp>/):
 from __future__ import annotations
 
 import os
-import sys
 from pathlib import Path
 
 os.environ.setdefault("MUJOCO_GL", "egl")
@@ -26,12 +25,7 @@ import jax
 import jax.numpy as jp
 import numpy as np
 
-from policy_analyzer.paths import MJPG_ROOT
-
-EXP_DIR = MJPG_ROOT / "experimentation"
-sys.path.insert(0, str(EXP_DIR))
-
-import eval_runs  # noqa: E402  -- pulls in brax_compat + sets up env vars
+from policy_analyzer import eval_runs  # noqa: E402  -- pulls in brax_compat + env vars
 
 from mujoco_playground import registry, wrapper  # noqa: E402
 from brax.training.acme import running_statistics  # noqa: E402
