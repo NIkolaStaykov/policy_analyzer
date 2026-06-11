@@ -80,8 +80,8 @@ def build_io_schema(
     input_groups = []
     start = 0
     for key in obs_keys:
-        comp = obs_module.get(key)
-        labels = obs_module.element_labels(key)
+        comp = env._obs_components[key]
+        labels = comp.element_labels()
         input_groups.append({
             "key": key,
             "description": comp.description,
