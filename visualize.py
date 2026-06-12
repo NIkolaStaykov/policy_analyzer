@@ -208,7 +208,10 @@ def visualize_dof_evolution(run_dir: Path, schema: dict | None = None) -> Path:
         squeeze=False,
     )
 
-    _draw_dof_evolution(axes, layout, pre_squash, action_scale, command, dt, deterministic)
+    _draw_dof_evolution(
+        axes, layout, pre_squash, action_scale, command, dt, deterministic,
+        ncols_max=ncols_max,
+    )
 
     fig.suptitle(_suptitle(npz, schema, "DOF evolution"), fontsize=10)
     fig.tight_layout()
@@ -316,7 +319,7 @@ def visualize_rollout_video(
         )
         _draw_dof_evolution(
             axes, layout, pre_squash, action_scale, command, dt,
-            deterministic, vline_t=vline_t,
+            deterministic, vline_t=vline_t, ncols_max=ncols_max,
         )
         fig.suptitle(f"t={vline_t:.2f}s", fontsize=7)
         fig.tight_layout(pad=0.3)

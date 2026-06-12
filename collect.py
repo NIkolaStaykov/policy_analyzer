@@ -170,7 +170,7 @@ def _rollout_step(inference_fn, loc_scale_fn, env, carry, _):
     action        — post-tanh policy output in [-1, 1]
     pre_squash    — Normal mean (loc), unbounded; saturation shows here
     action_scale  — Normal std (scale = softplus(raw)+0.001), pre-tanh space
-    command       — raw action delta = action * action_scale (next_state.info["action_delta"])
+    command       — raw action delta = action * action_scale (config scalar)
     traj_*        — MuJoCo data fields needed for rendering
     metrics       — env reward terms / counters
     """
@@ -184,7 +184,10 @@ def _rollout_step(inference_fn, loc_scale_fn, env, carry, _):
         "action": act,
         "pre_squash": loc,
         "action_scale": scale,
-        "command": next_state.info["action_delta"],
+        # raw per-actuator delta the env applies to data.ctrl before clipping +
+        # EMA (env: delta = action * action_scale). Derived from the config scalar
+        # rather than read from info, since the env doesn't expose it there.
+        "command": act * env._config.action_scale,
         # absolute EMA-smoothed motor target (always present in info, regardless
         # of whether the obs bundle exposes a motor_targets group)
         "motor_targets": next_state.info["motor_targets"],
