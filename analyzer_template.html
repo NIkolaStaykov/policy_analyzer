@@ -68,6 +68,37 @@
   }
   .form-row { display: flex; gap: 12px; }
   .form-row .form-group { flex: 1; }
+
+  /* collapsible policy dropdown */
+  .dropdown { position: relative; }
+  .dd-toggle {
+    width: 100%; text-align: left; background: var(--panel);
+    border: 1px solid var(--border); color: var(--text);
+    padding: 6px 8px; border-radius: 4px; font: inherit; cursor: pointer;
+  }
+  .dd-toggle::after { content: '▾'; float: right; color: var(--muted); }
+  .dd-panel {
+    display: none; position: absolute; z-index: 20; top: 100%; left: 0; right: 0;
+    margin-top: 2px; max-height: 320px; overflow-y: auto;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.4);
+  }
+  .dropdown.open .dd-panel { display: block; }
+  .dd-group > summary {
+    list-style: none; cursor: pointer; padding: 6px 8px;
+    color: var(--muted); font-size: 11px; font-weight: 600;
+    border-top: 1px solid var(--border); user-select: none;
+  }
+  .dd-group:first-child > summary { border-top: none; }
+  .dd-group > summary::-webkit-details-marker { display: none; }
+  .dd-group > summary::before { content: '▸ '; }
+  .dd-group[open] > summary::before { content: '▾ '; }
+  .dd-group > summary:hover { color: var(--text); }
+  .dd-opt {
+    padding: 5px 8px 5px 20px; cursor: pointer; font-size: 12px;
+  }
+  .dd-opt:hover { background: var(--border); }
+  .dd-opt.sel { color: var(--accent, #2563eb); }
   #run-btn {
     background: #2563eb; color: #fff; border: none;
     padding: 8px 22px; border-radius: 4px; cursor: pointer; font: inherit;
@@ -311,9 +342,11 @@
   <div class="form-section">
     <div class="form-group">
       <label>Policy</label>
-      <select id="run-sel" onchange="onRunChange()">
-        <option value="">Loading…</option>
-      </select>
+      <div class="dropdown" id="run-dd">
+        <button type="button" class="dd-toggle" id="run-dd-toggle" onclick="toggleRunDD(event)">Loading…</button>
+        <div class="dd-panel" id="run-dd-panel"></div>
+      </div>
+      <input type="hidden" id="run-sel">
     </div>
     <div class="form-group">
       <label>Checkpoint</label>
@@ -656,29 +689,63 @@ window.addEventListener('hashchange', async () => {
 });
 
 // ── configure tab ─────────────────────────────────────────────────────────────
+function policyLabel(name) {
+  // Show suffix if present (last dash-segment when it contains underscore)
+  const parts = name.split('-');
+  const suffix = parts[parts.length - 1];
+  return suffix.includes('_') ? `${name.substring(0, name.lastIndexOf('-' + suffix))}  [${suffix}]` : name;
+}
+
+function selectPolicy(name) {
+  document.getElementById('run-sel').value = name;
+  document.getElementById('run-dd-toggle').textContent = name ? policyLabel(name) : '— select policy —';
+  document.querySelectorAll('#run-dd-panel .dd-opt').forEach(o =>
+    o.classList.toggle('sel', o.dataset.value === name));
+  document.getElementById('run-dd').classList.remove('open');
+  onRunChange();
+}
+
+function toggleRunDD(e) {
+  e.stopPropagation();
+  document.getElementById('run-dd').classList.toggle('open');
+}
+// Close the dropdown when clicking outside of it.
+document.addEventListener('click', e => {
+  const dd = document.getElementById('run-dd');
+  if (dd && !dd.contains(e.target)) dd.classList.remove('open');
+});
+
 async function loadPolicies() {
   const policies = await fetch('/api/policies').then(r => r.json());
-  const sel = document.getElementById('run-sel');
+  const panel = document.getElementById('run-dd-panel');
   const byEnv = {};
   for (const p of policies) {
     if (!byEnv[p.env]) byEnv[p.env] = [];
     byEnv[p.env].push(p);
   }
-  sel.innerHTML = '<option value="">— select policy —</option>';
-  for (const env of Object.keys(byEnv).sort()) {
-    const og = document.createElement('optgroup');
-    og.label = env;
+  panel.innerHTML = '';
+  document.getElementById('run-dd-toggle').textContent = '— select policy —';
+  // Most recent run timestamp (YYYYMMDD-HHMMSS embedded in the name) per env.
+  const ts = name => (name.match(/-(\d{8}-\d{6})/) || [, ''])[1];
+  const recency = env => byEnv[env].reduce((mx, r) => { const t = ts(r.name); return t > mx ? t : mx; }, '');
+  // Sort groups by which env ran most recently (newest first).
+  const envs = Object.keys(byEnv).sort((a, b) => recency(b).localeCompare(recency(a)));
+  envs.forEach((env) => {
+    const grp = document.createElement('details');
+    grp.className = 'dd-group';
+    const sum = document.createElement('summary');
+    sum.textContent = `${env}  (${byEnv[env].length})`;
+    grp.appendChild(sum);
     for (const r of byEnv[env]) {
-      const opt = document.createElement('option');
-      opt.value = r.name;
-      // Show suffix if present (last dash-segment when it contains underscore)
-      const parts = r.name.split('-');
-      const suffix = parts[parts.length - 1];
-      opt.textContent = suffix.includes('_') ? `${r.name.substring(0, r.name.lastIndexOf('-' + suffix))}  [${suffix}]` : r.name;
-      og.appendChild(opt);
+      const opt = document.createElement('div');
+      opt.className = 'dd-opt';
+      opt.dataset.value = r.name;
+      opt.textContent = policyLabel(r.name);
+      opt.onclick = () => selectPolicy(r.name);
+      grp.appendChild(opt);
     }
-    sel.appendChild(og);
-  }
+    panel.appendChild(grp);
+  });
 }
 
 async function onRunChange() {
