@@ -56,6 +56,10 @@ def _is_oom(exc: Exception) -> bool:
             # Warp CUDA module-load failure caused by OOM (cudaErrorMemoryAllocation)
             "failed to load cuda module",
             "cuda error 2",
+            # OOM while loading a warp kernel surfaces only as a kernel-lookup
+            # failure (the module never loaded), masking the underlying OOM.
+            "failed to find forward kernel",
+            "failed to lookup kernel function",
         )
     )
 
