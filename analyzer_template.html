@@ -199,6 +199,101 @@
     padding: 4px 8px; font-size: 11px; color: var(--text);
   }
   .vtile .vlabel .vtag { color: var(--muted); font-size: 10px; }
+
+  /* ── compare pane ── */
+  #pane-cmp { display: none; flex-direction: row; }
+  #cmp-sidebar {
+    width: 280px; flex-shrink: 0; border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  #cmp-sidebar-top {
+    padding: 8px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    display: flex; align-items: center; gap: 6px;
+    color: var(--muted); font-size: 11px;
+  }
+  #cmp-sidebar-top .spacer { margin-left: auto; }
+  #cmp-refresh {
+    background: none; border: 1px solid var(--border); border-radius: 3px;
+    color: var(--muted); cursor: pointer; font: inherit; font-size: 11px;
+    padding: 2px 6px; line-height: 1;
+  }
+  #cmp-refresh:hover { color: var(--text); border-color: var(--muted); }
+  #queue-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .qgroup { margin-bottom: 10px; }
+  .qhead {
+    display: flex; align-items: baseline; gap: 6px; cursor: pointer;
+    padding: 3px 2px; color: var(--text); font-size: 11px;
+  }
+  .qhead:hover { color: var(--blue); }
+  .qhead .qname { font-weight: 600; word-break: break-all; }
+  .qhead .qcount { color: var(--muted); font-size: 10px; flex-shrink: 0; }
+  .qhead .qtwist { color: var(--muted); width: 10px; flex-shrink: 0; }
+  .qpolicies { padding: 4px 0 4px 6px; display: none; }
+  .qgroup.open .qpolicies { display: block; }
+
+  /* stacked-sheets policy card */
+  .pcard {
+    position: relative; margin: 5px 4px 5px 0;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+  }
+  .pcard.stacked::before, .pcard.stacked::after {
+    content: ''; position: absolute; inset: 0; z-index: -1;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+  }
+  .pcard.stacked::before { transform: translate(3px, 3px); opacity: .7; }
+  .pcard.stacked.deep::after { transform: translate(6px, 6px); opacity: .45; }
+  .pcard-head {
+    display: flex; align-items: center; gap: 7px; padding: 6px 8px;
+    cursor: pointer; font-size: 11px;
+  }
+  .pcard-head input { cursor: pointer; flex-shrink: 0; }
+  .pcard.selected { border-color: var(--accent); }
+  .pcard-label { flex: 1; min-width: 0; word-break: break-all; }
+  .pcard-bundle { color: var(--blue); font-size: 10px; }
+  .pcard-badge {
+    flex-shrink: 0; color: var(--muted); font-size: 10px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1px 7px;
+  }
+  .pcard-twist { color: var(--muted); width: 9px; flex-shrink: 0; font-size: 9px; }
+  .pcard-seeds { display: none; padding: 0 8px 6px 24px; }
+  .pcard.open .pcard-seeds { display: block; }
+  .seedrow {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px; color: var(--muted); padding: 2px 0;
+  }
+  .seedrow .sdot { flex-shrink: 0; }
+  .seedrow.ok .sdot { color: var(--green); }
+  .seedrow.failed .sdot { color: var(--red); }
+  .seedrow .sname { flex: 1; min-width: 0; word-break: break-all; }
+  .seedrow .sopen {
+    flex-shrink: 0; color: var(--blue); cursor: pointer; text-decoration: none;
+  }
+  .seedrow .sopen:hover { text-decoration: underline; }
+  .seedrow.failed .sopen { color: var(--border); cursor: default; pointer-events: none; }
+
+  #cmp-main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+  #cmp-controls {
+    flex-shrink: 0; border-bottom: 1px solid var(--border);
+    padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+  }
+  .cmp-field { display: flex; flex-direction: column; gap: 3px; }
+  .cmp-field label { color: var(--muted); font-size: 10px; }
+  .cmp-field select, .cmp-field input {
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    padding: 4px 6px; border-radius: 3px; font: inherit; font-size: 11px;
+  }
+  .cmp-field input[type=number] { width: 70px; }
+  .cmp-field.chk { flex-direction: row; align-items: center; gap: 5px; }
+  #cmp-gen {
+    background: #2563eb; color: #fff; border: none;
+    padding: 7px 18px; border-radius: 4px; cursor: pointer; font: inherit;
+  }
+  #cmp-gen:hover:not(:disabled) { background: #1d4ed8; }
+  #cmp-gen:disabled { background: var(--border); color: var(--muted); cursor: default; }
+  #cmp-status { flex-shrink: 0; padding: 6px 12px; font-size: 11px; color: var(--muted); min-height: 0; }
+  #cmp-status.err { color: var(--red); }
+  #cmp-chart { flex: 1; min-height: 0; margin: 0 8px 8px; }
 </style>
 </head>
 <body>
@@ -207,6 +302,7 @@
   <span class="logo"></span>
   <button class="tab-btn active" id="tab-cfg" onclick="switchTab('cfg')">Configure</button>
   <button class="tab-btn" id="tab-ses" onclick="switchTab('ses')">Session</button>
+  <button class="tab-btn" id="tab-cmp" onclick="switchTab('cmp')">Compare</button>
   <span id="session-info"></span>
 </div>
 
@@ -272,6 +368,60 @@
     <div class="view" id="view-rollout" style="display:none">
       <iframe id="rollout-frame" title="rollout analysis"></iframe>
     </div>
+  </div>
+</div>
+
+<!-- Compare pane -->
+<div class="pane" id="pane-cmp">
+  <div id="cmp-sidebar">
+    <div id="cmp-sidebar-top">
+      <span>Recent queues</span>
+      <span class="spacer"></span>
+      <button id="cmp-refresh" onclick="loadQueues(true)">↻</button>
+    </div>
+    <div id="queue-list"><div class="empty">Loading…</div></div>
+  </div>
+  <div id="cmp-main">
+    <div id="cmp-controls">
+      <div class="cmp-field">
+        <label>Mode</label>
+        <select id="cmp-mode">
+          <option value="det">deterministic</option>
+          <option value="sto">stochastic</option>
+        </select>
+      </div>
+      <div class="cmp-field">
+        <label>Rollouts / seed</label>
+        <input type="number" id="cmp-nroll" value="50" min="1" max="512">
+      </div>
+      <div class="cmp-field">
+        <label>Success channel</label>
+        <select id="cmp-channel"><option value="">—</option></select>
+      </div>
+      <div class="cmp-field chk">
+        <input type="checkbox" id="cmp-abs">
+        <label for="cmp-abs">abs</label>
+      </div>
+      <div class="cmp-field">
+        <label>Sweep min</label>
+        <input type="number" id="cmp-smin" step="any" value="0">
+      </div>
+      <div class="cmp-field">
+        <label>Sweep max</label>
+        <input type="number" id="cmp-smax" step="any" value="1">
+      </div>
+      <div class="cmp-field">
+        <label>Points</label>
+        <input type="number" id="cmp-npts" value="151" min="2" max="501">
+      </div>
+      <div class="cmp-field">
+        <label>Hold steps</label>
+        <input type="number" id="cmp-hold" value="10" min="1">
+      </div>
+      <button id="cmp-gen" onclick="onGenerateCompare()">▶ Generate</button>
+    </div>
+    <div id="cmp-status"></div>
+    <div id="cmp-chart"></div>
   </div>
 </div>
 
@@ -460,10 +610,16 @@ async function startTilePlayback(sid, r, tile) {
 function switchTab(tab) {
   document.getElementById('tab-cfg').classList.toggle('active', tab === 'cfg');
   document.getElementById('tab-ses').classList.toggle('active', tab === 'ses');
+  document.getElementById('tab-cmp').classList.toggle('active', tab === 'cmp');
   document.getElementById('pane-cfg').style.display = tab === 'cfg' ? '' : 'none';
   document.getElementById('pane-ses').style.display = tab === 'ses' ? 'flex' : 'none';
+  document.getElementById('pane-cmp').style.display = tab === 'cmp' ? 'flex' : 'none';
   if (tab === 'ses' && currentView === 'aggregate') {
     setTimeout(resizeAggregateCharts, 50);
+  }
+  if (tab === 'cmp') {
+    if (!queuesLoaded) loadQueues();
+    setTimeout(resizeCompareChart, 50);
   }
 }
 
@@ -972,6 +1128,304 @@ function _renderAggregatePlots() {
 
   // Charts may have been (re)created while the view was hidden; ensure they size.
   if (currentView === 'aggregate') setTimeout(resizeAggregateCharts, 0);
+}
+
+// ── compare tab ─────────────────────────────────────────────────────────────────
+let queuesLoaded = false;
+let queueData = [];                 // [{queue, policies:[...]}]
+const openQueues = new Set();       // queue names whose policy list is expanded
+const openCards = new Set();        // policy keys whose seed list is expanded
+const selectedPolicies = new Map(); // key -> {label, sensor_bundle, env_name, run_names[]}
+let cmpEnv = null;                  // env_name shared by current selection
+const cmpConfigCache = {};          // env_name -> /api/compare/config result
+let comparePollTimer = null;
+
+function resizeCompareChart() {
+  const el = document.getElementById('cmp-chart');
+  if (el && el.data) { try { Plotly.Plots.resize(el); } catch (_) {} }
+}
+
+async function loadQueues(force) {
+  if (queuesLoaded && !force) return;
+  queuesLoaded = true;
+  const list = document.getElementById('queue-list');
+  list.innerHTML = '<div class="empty">Loading…</div>';
+  try {
+    queueData = await fetch('/api/queues').then(r => r.json());
+  } catch (_) {
+    list.innerHTML = '<div class="empty">Failed to load queues.</div>';
+    return;
+  }
+  if (queueData.length) openQueues.add(queueData[0].queue);  // newest open by default
+  renderQueues();
+}
+
+function renderQueues() {
+  const list = document.getElementById('queue-list');
+  if (!queueData.length) { list.innerHTML = '<div class="empty">No queues found.</div>'; return; }
+  list.innerHTML = '';
+  queueData.forEach((q) => {
+    const g = document.createElement('div');
+    g.className = 'qgroup' + (openQueues.has(q.queue) ? ' open' : '');
+    const head = document.createElement('div');
+    head.className = 'qhead';
+    head.onclick = () => {
+      const on = g.classList.toggle('open');
+      if (on) openQueues.add(q.queue); else openQueues.delete(q.queue);
+    };
+    head.innerHTML =
+      `<span class="qtwist">▸</span>` +
+      `<span class="qname">${q.queue}</span>` +
+      `<span class="qcount">${q.policies.length}</span>`;
+    g.appendChild(head);
+
+    const pols = document.createElement('div');
+    pols.className = 'qpolicies';
+    q.policies.forEach(p => pols.appendChild(policyCard(q.queue, p)));
+    g.appendChild(pols);
+    list.appendChild(g);
+  });
+}
+
+function policyKey(queue, p) { return queue + '::' + p.id; }
+
+function policyCard(queue, p) {
+  const key = policyKey(queue, p);
+  const runnable = p.seeds.filter(s => s.runnable);
+  const disabled = runnable.length === 0;
+
+  const card = document.createElement('div');
+  card.className = 'pcard';
+  if (p.n_seeds > 1) card.classList.add('stacked');
+  if (p.n_seeds > 2) card.classList.add('deep');
+  if (selectedPolicies.has(key)) card.classList.add('selected');
+  if (openCards.has(key)) card.classList.add('open');
+
+  const head = document.createElement('div');
+  head.className = 'pcard-head';
+  const bundle = p.sensor_bundle ? `<span class="pcard-bundle">${p.sensor_bundle}</span>` : '';
+  head.innerHTML =
+    `<input type="checkbox" ${selectedPolicies.has(key) ? 'checked' : ''} ${disabled ? 'disabled' : ''}>` +
+    `<span class="pcard-label">${p.label} ${bundle}</span>` +
+    `<span class="pcard-badge">×${p.n_seeds}${p.runnable_seeds < p.n_seeds ? ' (' + p.runnable_seeds + ' ok)' : ''}</span>` +
+    `<span class="pcard-twist">▸</span>`;
+  // Checkbox toggles selection; clicking elsewhere on the head expands the stack.
+  const cb = head.querySelector('input');
+  cb.onclick = (e) => { e.stopPropagation(); togglePolicySelect(key, queue, p, cb.checked); };
+  head.onclick = () => {
+    const on = card.classList.toggle('open');
+    if (on) openCards.add(key); else openCards.delete(key);
+  };
+  card.appendChild(head);
+
+  const seeds = document.createElement('div');
+  seeds.className = 'pcard-seeds';
+  seeds.innerHTML = p.seeds.map(s => {
+    const cls = s.result === 'ok' ? 'ok' : 'failed';
+    const open = s.runnable
+      ? `<a class="sopen" onclick="openRunAnalysis('${s.run_name}')">open ▸</a>`
+      : `<span class="sopen">${s.result}</span>`;
+    return `<div class="seedrow ${cls}">` +
+      `<span class="sdot">●</span>` +
+      `<span class="sname">seed ${s.seed == null ? '?' : s.seed} · ${s.run_name}</span>` +
+      open + `</div>`;
+  }).join('');
+  card.appendChild(seeds);
+  return card;
+}
+
+function togglePolicySelect(key, queue, p, on) {
+  if (!on) {
+    selectedPolicies.delete(key);
+  } else {
+    // Selection must share one env (the success criterion is per-env).
+    if (cmpEnv && p.env_name !== cmpEnv && selectedPolicies.size) {
+      selectedPolicies.clear();
+    }
+    cmpEnv = p.env_name;
+    selectedPolicies.set(key, {
+      label: p.label,
+      sensor_bundle: p.sensor_bundle,
+      env_name: p.env_name,
+      run_names: p.seeds.filter(s => s.runnable).map(s => s.run_name),
+    });
+  }
+  if (!selectedPolicies.size) cmpEnv = null;
+  renderQueues();               // reflect selection / env reset across cards
+  if (cmpEnv) loadCompareConfig(cmpEnv);
+  updateGenEnabled();
+}
+
+function updateGenEnabled() {
+  const btn = document.getElementById('cmp-gen');
+  const ch = document.getElementById('cmp-channel').value;
+  btn.disabled = selectedPolicies.size === 0 || !ch || comparePollTimer != null;
+  const st = document.getElementById('cmp-status');
+  if (!comparePollTimer) {
+    st.className = '';
+    st.textContent = selectedPolicies.size
+      ? `${selectedPolicies.size} polic${selectedPolicies.size === 1 ? 'y' : 'ies'} selected${cmpEnv ? ' · ' + cmpEnv : ''}`
+      : 'Select policies from one queue to compare.';
+  }
+}
+
+async function loadCompareConfig(env) {
+  let cfg = cmpConfigCache[env];
+  if (!cfg) {
+    cfg = await fetch(`/api/compare/config?env=${encodeURIComponent(env)}`).then(r => r.json());
+    cmpConfigCache[env] = cfg;
+  }
+  applyCompareConfig(cfg);
+}
+
+function applyCompareConfig(cfg) {
+  const chSel = document.getElementById('cmp-channel');
+  const channels = cfg.available_channels && cfg.available_channels.length
+    ? cfg.available_channels
+    : (cfg.channel ? [cfg.channel] : []);
+  const prev = chSel.value;
+  chSel.innerHTML = channels.length
+    ? channels.map(c => `<option value="${c}">${c}</option>`).join('')
+    : '<option value="">(run once to discover channels)</option>';
+  // Keep the user's pick if still valid, else use the config default.
+  chSel.value = channels.includes(prev) ? prev
+    : (channels.includes(cfg.channel) ? cfg.channel : (channels[0] || ''));
+  document.getElementById('cmp-abs').checked = !!cfg.abs;
+  document.getElementById('cmp-smin').value = cfg.sweep_min;
+  document.getElementById('cmp-smax').value = cfg.sweep_max;
+  document.getElementById('cmp-npts').value = cfg.n_points;
+  document.getElementById('cmp-hold').value = cfg.hold_steps;
+  // Stash non-edited config (units/labels/ref) for the POST + plot.
+  document.getElementById('cmp-controls').dataset.cfg = JSON.stringify(cfg);
+  updateGenEnabled();
+}
+
+async function openRunAnalysis(run_name) {
+  // Reuse the existing session flow to inspect one training run's details.
+  const resp = await fetch('/api/sessions', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({run: run_name, checkpoint_step: 'latest', n_det: 3, n_sto: 3}),
+  });
+  const {session_id} = await resp.json();
+  rolloutData = {};
+  window.location.hash = `sid=${session_id}`;
+  await refreshSessionList();
+  await loadSession(session_id);
+  switchTab('ses');
+  startStream();
+}
+
+function buildCriterion() {
+  const base = JSON.parse(document.getElementById('cmp-controls').dataset.cfg || '{}');
+  return {
+    ...base,
+    channel: document.getElementById('cmp-channel').value,
+    abs: document.getElementById('cmp-abs').checked,
+    sweep_min: parseFloat(document.getElementById('cmp-smin').value),
+    sweep_max: parseFloat(document.getElementById('cmp-smax').value),
+    n_points: parseInt(document.getElementById('cmp-npts').value) || 151,
+    hold_steps: parseInt(document.getElementById('cmp-hold').value) || 10,
+  };
+}
+
+async function onGenerateCompare() {
+  if (!selectedPolicies.size) return;
+  const mode = document.getElementById('cmp-mode').value;
+  const n_rollouts = parseInt(document.getElementById('cmp-nroll').value) || 50;
+  const criterion = buildCriterion();
+  if (!criterion.channel) return;
+
+  const policies = [...selectedPolicies.values()].map(p => ({
+    label: p.label, sensor_bundle: p.sensor_bundle, run_names: p.run_names,
+  }));
+
+  const resp = await fetch('/api/compare', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({mode, n_rollouts, criterion, policies}),
+  });
+  const {compare_id} = await resp.json();
+  pollCompare(compare_id);
+}
+
+function pollCompare(cid) {
+  if (comparePollTimer) clearInterval(comparePollTimer);
+  const st = document.getElementById('cmp-status');
+  updateGenEnabled();   // disables Generate while running
+  const tick = async () => {
+    let data;
+    try { data = await fetch(`/api/compare/${cid}?t=${Date.now()}`).then(r => r.json()); }
+    catch (_) { return; }
+    if (data.status === 'ready') {
+      clearInterval(comparePollTimer); comparePollTimer = null;
+      st.className = ''; st.textContent = 'Done.';
+      renderCompareChart(data.result);
+      updateGenEnabled();
+      return;
+    }
+    const runs = data.runs || [];
+    const running = runs.filter(r => r.status === 'running').length;
+    const ready = runs.filter(r => r.status === 'ready').length;
+    const errored = runs.filter(r => r.status === 'error');
+    st.className = errored.length ? 'err' : '';
+    let msg = `Collecting rollouts — ${ready}/${runs.length} cached, ${running} running…`;
+    if (errored.length) msg += `  ·  ${errored.length} failed: ${errored[0].error ? errored[0].error.slice(0, 80) : ''}`;
+    st.textContent = msg;
+  };
+  comparePollTimer = setInterval(tick, 1500);
+  tick();
+}
+
+const CMP_COLORS = COLORS;
+
+function renderCompareChart(result) {
+  const x = result.x;
+  const traces = [];
+  result.policies.forEach((p, i) => {
+    const color = CMP_COLORS[i % CMP_COLORS.length];
+    // min-max band (skip when a single seed has no spread)
+    if (p.n_seeds > 1) {
+      traces.push({
+        x: [...x, ...x.slice().reverse()],
+        y: [...p.max, ...p.min.slice().reverse()],
+        fill: 'toself', fillcolor: color + '25', line: {color: 'transparent'},
+        type: 'scatter', mode: 'none', showlegend: false, hoverinfo: 'skip',
+      });
+    }
+    traces.push({
+      x, y: p.mean, type: 'scatter', mode: 'lines',
+      name: `${p.label} (n=${p.n_seeds} seed${p.n_seeds === 1 ? '' : 's'})`,
+      line: {color, width: 2},
+    });
+  });
+
+  const shapes = [], annotations = [];
+  if (result.ref) {
+    shapes.push({
+      type: 'line', x0: result.ref.value, x1: result.ref.value, y0: 0, y1: 100,
+      line: {color: '#9ca3af', dash: 'dash', width: 1},
+    });
+    if (result.ref.label) annotations.push({
+      x: result.ref.value, y: 100, yanchor: 'bottom', text: result.ref.label,
+      showarrow: false, font: {size: 9, color: '#9ca3af'},
+    });
+  }
+
+  const layout = {
+    ...basePlotLayout('Success rate vs threshold'),
+    showlegend: true,
+    margin: {l: 50, r: 10, t: 28, b: 44},
+    xaxis: {
+      title: {text: result.xlabel, font: {size: 11}}, gridcolor: '#374151',
+      range: result.xlim != null ? [0, result.xlim] : undefined,
+    },
+    yaxis: {title: {text: result.ylabel, font: {size: 11}}, gridcolor: '#374151', range: [0, 100]},
+    legend: {font: {size: 10}},
+    shapes, annotations,
+  };
+  Plotly.react('cmp-chart', traces, layout, plotCfg);
+  setTimeout(resizeCompareChart, 0);
 }
 
 // ── start ─────────────────────────────────────────────────────────────────────

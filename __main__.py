@@ -101,6 +101,36 @@ def _tail(path: Path, n_chars: int = 600) -> str:
         return "subprocess failed"
 
 
+# ── compare-eval cache helpers (no JAX) ─────────────────────────────────────────
+
+def _compare_cache_path(run_name: str, mode: str) -> Path:
+    return ANALYSIS_DIR / "compare_cache" / run_name / f"{mode}.npz"
+
+
+def _compare_cache_done(run_name: str, mode: str) -> bool:
+    p = _compare_cache_path(run_name, mode)
+    return (p.parent / f"{p.stem}.DONE").exists() and p.exists()
+
+
+def _load_compare_cache(run_name: str, mode: str) -> dict | None:
+    """Load a cached eval npz into {channels, n_rollouts, env_name, sensor_bundle}."""
+    import numpy as np
+    p = _compare_cache_path(run_name, mode)
+    if not p.exists():
+        return None
+    try:
+        z = np.load(p, allow_pickle=False)
+        names = [str(n) for n in z["_channels"]]
+        return {
+            "channels": {n: z[n] for n in names},
+            "n_rollouts": int(z["_n_rollouts"]),
+            "env_name": str(z["_env_name"]),
+            "sensor_bundle": str(z["_sensor_bundle"]),
+        }
+    except Exception:
+        return None
+
+
 # ── HTTP handler ──────────────────────────────────────────────────────────────
 
 def _make_handler(server: "AnalysisServer", analysis_dir: Path):
@@ -138,6 +168,17 @@ def _make_handler(server: "AnalysisServer", analysis_dir: Path):
                 run = params.get("run", "")
                 steps = _list_checkpoints(server.logs_dir / run) if run else []
                 self._json(steps)
+            elif path == "/api/queues":
+                self._json(server.list_queues_payload())
+            elif path == "/api/compare/config":
+                self._json(server.compare_config(params.get("env", "")))
+            elif path.startswith("/api/compare/"):
+                cid = path[len("/api/compare/"):]
+                data = server.compare_status(cid)
+                if data is not None:
+                    self._json(data)
+                else:
+                    self._no_body(404)
             elif path == "/api/sessions":
                 self._json(server.list_sessions())
             elif path.startswith("/api/sessions/") and path.endswith("/stream"):
@@ -207,6 +248,10 @@ def _make_handler(server: "AnalysisServer", analysis_dir: Path):
                     n_sto=int(body.get("n_sto", 0)),
                 )
                 self._json({"session_id": sid})
+            elif path == "/api/compare":
+                length = int(self.headers.get("Content-Length", 0))
+                body = json.loads(self.rfile.read(length))
+                self._json(server.start_compare(body))
             else:
                 self._no_body(405)
 
@@ -249,6 +294,15 @@ class AnalysisServer:
         self._pending: collections.deque[tuple] = collections.deque()
         self._running: dict[int, dict] = {}          # gpu_id -> job dict
         self._oom_attempts: dict[tuple[str, bool], int] = {}
+
+        # compare-eval scheduler state (guarded by _lock). Compare jobs are
+        # lightweight rollout evals (no rendering) that share the GPU pool with
+        # session rollouts; their results are cached on disk under compare_cache/.
+        self._compare_pending: collections.deque[dict] = collections.deque()
+        self._compare_inflight: set[tuple[str, str]] = set()   # (run_name, mode)
+        self._compare_errors: dict[tuple[str, str], str] = {}  # (run_name, mode) -> msg
+        self._compare_oom: dict[tuple[str, str], int] = {}     # OOM retry counter
+        self._compare_jobs: dict[str, dict] = {}               # compare_id -> request
 
         # SSE broker state (guarded by _lock)
         self._listeners: dict[str, set] = {}         # sid -> set[queue.Queue]
@@ -363,6 +417,10 @@ class AnalysisServer:
             running = list(self._running.items())
 
         for gpu, job in running:
+            if job.get("kind") == "compare":
+                self._reap_compare(gpu, job)
+                continue
+
             sid = job["sid"]
             sess = self._sessions.get(sid)
 
@@ -410,33 +468,41 @@ class AnalysisServer:
                 self._running.pop(gpu, None)
 
     def _dispatch(self) -> None:
-        """Launch queued groups onto free GPUs that have enough VRAM."""
+        """Launch queued work (session rollouts, then compare evals) onto free
+        GPUs that have enough VRAM. Session rollouts take priority."""
         with self._lock:
             free_gpus = [g for g in self._gpus if g not in self._running]
-            has_pending = bool(self._pending)
-        if not has_pending or not free_gpus:
+            has_work = bool(self._pending) or bool(self._compare_pending)
+        if not has_work or not free_gpus:
             return
 
         for gpu in free_gpus:
+            with self._lock:
+                if not (self._pending or self._compare_pending):
+                    break
             free = _free_vram_gb(gpu)  # shell out outside the lock
             with self._lock:
-                if not self._pending:
-                    break
-                sid, det, seeds = self._pending[0]
-                sess = self._sessions.get(sid)
-                if sess is None:                       # session deleted
+                if self._pending:
+                    sid, det, seeds = self._pending[0]
+                    sess = self._sessions.get(sid)
+                    if sess is None:                   # session deleted
+                        self._pending.popleft()
+                        continue
+                    if free < MIN_FREE_VRAM_GB:
+                        tag = "det" if det else "sto"
+                        for s in seeds:
+                            sess.update_rollout_detail(
+                                f"{tag}_{s}",
+                                f"waiting for VRAM — {free:.1f}/{MIN_FREE_VRAM_GB} GB on GPU {gpu}",
+                            )
+                        continue
                     self._pending.popleft()
-                    continue
-                if free < MIN_FREE_VRAM_GB:
-                    tag = "det" if det else "sto"
-                    for s in seeds:
-                        sess.update_rollout_detail(
-                            f"{tag}_{s}",
-                            f"waiting for VRAM — {free:.1f}/{MIN_FREE_VRAM_GB} GB on GPU {gpu}",
-                        )
-                    continue
-                self._pending.popleft()
-                self._launch_locked(gpu, sid, det, seeds, sess)
+                    self._launch_locked(gpu, sid, det, seeds, sess)
+                elif self._compare_pending:
+                    if free < MIN_FREE_VRAM_GB:
+                        continue
+                    task = self._compare_pending.popleft()
+                    self._launch_compare_locked(gpu, task)
 
     def _launch_locked(self, gpu: int, sid: str, det: bool, seeds, sess: Session) -> None:
         """Spawn a collect_one subprocess for a whole group on `gpu`. Caller holds _lock."""
@@ -471,6 +537,73 @@ class AnalysisServer:
         for name in names:
             sess.update_rollout(name, "running")
         print(f"[GPU {gpu}] launched {sid}/{tag} seeds={list(seeds)}", flush=True)
+
+    def _launch_compare_locked(self, gpu: int, task: dict) -> None:
+        """Spawn a compare_collect subprocess for one run+mode. Caller holds _lock."""
+        run_name, mode = task["run_name"], task["mode"]
+        out_path = _compare_cache_path(run_name, mode)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        # A fresh run invalidates a stale DONE sentinel from a prior eval.
+        done = out_path.parent / f"{out_path.stem}.DONE"
+        done.unlink(missing_ok=True)
+
+        cmd = [
+            sys.executable, "-m", "policy_analyzer.compare_collect",
+            "--log-dir", str(self.logs_dir / run_name),
+            "--out", str(out_path),
+            "--mode", mode,
+            "--n-rollouts", str(task["n_rollouts"]),
+        ]
+        env = os.environ.copy()
+        env["CUDA_VISIBLE_DEVICES"] = str(gpu)
+
+        logpath = out_path.parent / f"{out_path.stem}.collect.log"
+        logf = open(logpath, "w")
+        proc = subprocess.Popen(
+            cmd, cwd=str(PKG_DIR.parent), env=env,
+            stdout=logf, stderr=subprocess.STDOUT,
+        )
+        self._running[gpu] = {
+            "kind": "compare", "proc": proc, "run_name": run_name, "mode": mode,
+            "n_rollouts": task["n_rollouts"], "logf": logf, "logpath": logpath,
+            "out_path": out_path,
+        }
+        self._compare_errors.pop((run_name, mode), None)
+        print(f"[GPU {gpu}] launched compare {run_name}/{mode}", flush=True)
+
+    def _reap_compare(self, gpu: int, job: dict) -> None:
+        """Resolve a finished compare-eval subprocess."""
+        rc = job["proc"].poll()
+        if rc is None:
+            return
+        job["logf"].close()
+        run_name, mode = job["run_name"], job["mode"]
+        key = (run_name, mode)
+        out_path = job["out_path"]
+        done = out_path.parent / f"{out_path.stem}.DONE"
+
+        with self._lock:
+            self._running.pop(gpu, None)
+            self._compare_inflight.discard(key)
+
+        if rc == _EXIT_OOM:
+            n = self._compare_oom.get(key, 0) + 1
+            self._compare_oom[key] = n
+            if n <= _MAX_OOM_RETRIES:
+                with self._lock:
+                    self._compare_inflight.add(key)
+                    self._compare_pending.append({
+                        "run_name": run_name, "mode": mode,
+                        "n_rollouts": job["n_rollouts"],
+                    })
+                print(f"[GPU {gpu}] compare {run_name}/{mode} OOM — requeued ({n})", flush=True)
+                return
+            self._compare_errors[key] = "OOM: exceeded retries"
+        elif rc != 0 or not done.exists():
+            self._compare_errors[key] = _tail(job["logpath"])
+        else:
+            self._compare_oom.pop(key, None)
+        print(f"[GPU {gpu}] compare {run_name}/{mode} exited rc={rc}", flush=True)
 
     # ── public API ────────────────────────────────────────────────────────────
 
@@ -536,6 +669,112 @@ class AnalysisServer:
         with self._lock:
             sess = self._sessions.get(sid)
         return self._payload(sess) if sess else None
+
+    # ── compare API ─────────────────────────────────────────────────────────────
+
+    def list_queues_payload(self) -> list[dict]:
+        from policy_analyzer import queues
+        return queues.list_queues()
+
+    def compare_config(self, env: str) -> dict:
+        """Default success criterion for an env, enriched with channels from any
+        existing cache for that env so the UI can offer a channel dropdown."""
+        from policy_analyzer import success_curve
+
+        channels: list[str] | None = None
+        cache_root = ANALYSIS_DIR / "compare_cache"
+        if env and cache_root.is_dir():
+            for run_dir in cache_root.iterdir():
+                for mode in ("det", "sto"):
+                    if not _compare_cache_done(run_dir.name, mode):
+                        continue
+                    cache = _load_compare_cache(run_dir.name, mode)
+                    if cache and cache["env_name"] == env:
+                        channels = sorted(cache["channels"].keys())
+                        break
+                if channels:
+                    break
+        return success_curve.config_for_env(env, channels)
+
+    def start_compare(self, body: dict) -> dict:
+        """Queue evals for any uncached runs and register a compare job."""
+        mode = body.get("mode", "det")
+        n_rollouts = int(body.get("n_rollouts", 50))
+        policies = body.get("policies", [])
+        criterion = body.get("criterion", {})
+
+        cid = f"cmp-{time.strftime('%Y%m%d-%H%M%S')}-{int(time.time() * 1000) % 1000:03d}"
+        with self._lock:
+            for pol in policies:
+                for run_name in pol.get("run_names", []):
+                    cached = _compare_cache_done(run_name, mode)
+                    cache = _load_compare_cache(run_name, mode) if cached else None
+                    enough = cache is not None and cache["n_rollouts"] >= n_rollouts
+                    key = (run_name, mode)
+                    if enough or key in self._compare_inflight:
+                        continue
+                    self._compare_inflight.add(key)
+                    self._compare_errors.pop(key, None)
+                    self._compare_pending.append(
+                        {"run_name": run_name, "mode": mode, "n_rollouts": n_rollouts}
+                    )
+            self._compare_jobs[cid] = {
+                "mode": mode, "n_rollouts": n_rollouts,
+                "criterion": criterion, "policies": policies,
+            }
+        return {"compare_id": cid}
+
+    def compare_status(self, cid: str) -> dict | None:
+        from policy_analyzer import success_curve
+
+        with self._lock:
+            job = self._compare_jobs.get(cid)
+        if job is None:
+            return None
+
+        mode = job["mode"]
+        runs_status = []
+        all_ready = True
+        for pol in job["policies"]:
+            for run_name in pol.get("run_names", []):
+                key = (run_name, mode)
+                if _compare_cache_done(run_name, mode):
+                    st = "ready"
+                elif key in self._compare_errors:
+                    st = "error"
+                elif key in self._compare_inflight:
+                    st = "running"
+                else:
+                    # Not cached, not erroring, not queued → safety net so the
+                    # client doesn't poll forever for something never launched.
+                    st = "error"
+                    self._compare_errors[key] = "not collected"
+                if st != "ready":
+                    all_ready = False
+                runs_status.append({
+                    "run_name": run_name, "status": st,
+                    "error": self._compare_errors.get(key),
+                })
+
+        if not all_ready:
+            return {"status": "collecting", "runs": runs_status}
+
+        # All caches present → load and compute curves.
+        cmp_policies = []
+        for pol in job["policies"]:
+            seeds = []
+            for run_name in pol.get("run_names", []):
+                cache = _load_compare_cache(run_name, mode)
+                if cache:
+                    seeds.append(cache)
+            if seeds:
+                cmp_policies.append({
+                    "label": pol.get("label", ""),
+                    "sensor_bundle": pol.get("sensor_bundle", ""),
+                    "seeds": seeds,
+                })
+        result = success_curve.compute_curves(cmp_policies, job["criterion"])
+        return {"status": "ready", "runs": runs_status, "result": result}
 
     def delete_session(self, sid: str) -> bool:
         with self._lock:

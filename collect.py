@@ -358,6 +358,74 @@ def run_batched_rollout(
     return results
 
 
+# Non-numeric / per-env-noise info channels that are useless as success criteria;
+# dropped from the lean eval capture (mirrors experimentation/collect_rollouts.py).
+DROP_INFO = {
+    "rng", "pert_dir", "pert_vel", "last_pert_step",
+    "pert_duration_steps", "pert_wait_steps", "obs_bias",
+}
+
+
+def run_eval_rollouts(
+    handles: dict, n_rollouts: int = 50, deterministic: bool = True
+) -> dict:
+    """Run N rollouts and capture only per-step scalar channels for analysis.
+
+    Reuses the restored `handles` from restore_policy and the same vmapped-scan
+    pattern as run_batched_rollout, but skips obs/action/render fields entirely:
+    it keeps reward, done, every scalar state.metrics entry, and every scalar
+    state.info entry (prefixed "info."). This is the lean path behind the Compare
+    tab — many rollouts, no rendering — and the source of the continuous error
+    channels (e.g. info.ori_error / info.force_error) success-vs-threshold needs.
+
+    Returns:
+        {
+          "channels":   {name -> float32 array [N, T]},   # N rollouts, T steps
+          "n_rollouts": int,
+          "episode_length": int,
+        }
+    """
+    eval_env = handles["eval_env"]
+    episode_length = int(handles["ppo_params"].episode_length)
+    inference_fn = handles["make_inference_fn"](handles["params"], deterministic=deterministic)
+
+    def step_fn(carry, _):
+        state, rng = carry
+        rng, act_key = jax.random.split(rng)
+        act = inference_fn(state.obs, act_key)[0]
+        state = eval_env.step(state, act)
+        return (state, rng), (state.reward, state.done, state.metrics, state.info)
+
+    def single(rng):
+        state = eval_env.reset(rng)
+        _, traj = jax.lax.scan(step_fn, (state, rng), None, length=episode_length)
+        return traj
+
+    # Same seed stream as experimentation/collect_rollouts.py for comparability.
+    rngs = jax.random.split(jax.random.PRNGKey(0), n_rollouts)        # [N, 2]
+    reward, done, metrics, info = jax.jit(jax.vmap(single))(rngs)      # leaves [N, T, ...]
+
+    channels: dict[str, np.ndarray] = {
+        "reward": np.asarray(reward, dtype=np.float32),
+        "done": np.asarray(done, dtype=np.float32),
+    }
+    for prefix, d in (("", metrics), ("info.", info)):
+        for k, v in d.items():
+            if k in DROP_INFO:
+                continue
+            arr = np.asarray(v)
+            # keep only scalar-per-step channels: vmap(N) + scan(T) → exactly [N, T]
+            if arr.ndim != 2 or not np.issubdtype(arr.dtype, np.number):
+                continue
+            channels[f"{prefix}{k}"] = arr.astype(np.float32)
+
+    return {
+        "channels": channels,
+        "n_rollouts": int(n_rollouts),
+        "episode_length": episode_length,
+    }
+
+
 def collect_rollout(log_dir: Path, seed: int = 1, deterministic: bool = True) -> dict:
     """Restore the policy and run one rollout; return numpy arrays + meta + schema."""
     handles = restore_policy(log_dir)
