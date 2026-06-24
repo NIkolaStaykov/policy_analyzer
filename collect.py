@@ -170,7 +170,7 @@ def _rollout_step(inference_fn, loc_scale_fn, env, carry, _):
     action        — post-tanh policy output in [-1, 1]
     pre_squash    — Normal mean (loc), unbounded; saturation shows here
     action_scale  — Normal std (scale = softplus(raw)+0.001), pre-tanh space
-    command       — raw action delta = action * action_scale (config scalar)
+    command       — per-actuator motor command in actuator units (radians)
     traj_*        — MuJoCo data fields needed for rendering
     metrics       — env reward terms / counters
     """
@@ -179,15 +179,22 @@ def _rollout_step(inference_fn, loc_scale_fn, env, carry, _):
     act = inference_fn(state.obs, act_key)[0]
     loc, scale = loc_scale_fn(state.obs)
     next_state = env.step(state, act)
+    # per-actuator motor command in actuator units (radians). Delta-control envs
+    # expose a scalar action_scale and apply `action * action_scale` as a delta to
+    # data.ctrl. Absolute-target + EMA envs dropped action_scale entirely (the
+    # policy emits an absolute joint target), so fall back to the EMA-smoothed
+    # motor target the env actually applied — always present in info.
+    cfg_action_scale = env._config.get("action_scale", None)
+    command = (
+        act * cfg_action_scale if cfg_action_scale is not None
+        else next_state.info["motor_targets"]
+    )
     out = {
         "obs": state.obs["state"],
         "action": act,
         "pre_squash": loc,
         "action_scale": scale,
-        # raw per-actuator delta the env applies to data.ctrl before clipping +
-        # EMA (env: delta = action * action_scale). Derived from the config scalar
-        # rather than read from info, since the env doesn't expose it there.
-        "command": act * env._config.action_scale,
+        "command": command,
         # absolute EMA-smoothed motor target (always present in info, regardless
         # of whether the obs bundle exposes a motor_targets group)
         "motor_targets": next_state.info["motor_targets"],

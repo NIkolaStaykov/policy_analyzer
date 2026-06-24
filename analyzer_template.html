@@ -322,6 +322,12 @@
   }
   #cmp-gen:hover:not(:disabled) { background: #1d4ed8; }
   #cmp-gen:disabled { background: var(--border); color: var(--muted); cursor: default; }
+  #cmp-dl {
+    background: transparent; color: var(--text); border: 1px solid var(--border);
+    padding: 7px 14px; border-radius: 4px; cursor: pointer; font: inherit;
+  }
+  #cmp-dl:hover:not(:disabled) { border-color: var(--muted); background: var(--panel); }
+  #cmp-dl:disabled { color: var(--muted); cursor: default; }
   #cmp-status { flex-shrink: 0; padding: 6px 12px; font-size: 11px; color: var(--muted); min-height: 0; }
   #cmp-status.err { color: var(--red); }
   #cmp-chart { flex: 1; min-height: 0; margin: 0 8px 8px; }
@@ -452,6 +458,7 @@
         <input type="number" id="cmp-hold" value="10" min="1">
       </div>
       <button id="cmp-gen" onclick="onGenerateCompare()">▶ Generate</button>
+      <button id="cmp-dl" onclick="downloadCompareChart()" disabled>⬇ PNG</button>
     </div>
     <div id="cmp-status"></div>
     <div id="cmp-chart"></div>
@@ -1446,13 +1453,34 @@ function pollCompare(cid) {
 
 const CMP_COLORS = COLORS;
 
+// Export the rendered Compare chart as a PNG. The modebar is hidden (plotCfg),
+// so this is the only way to download; filename follows the success channel.
+function downloadCompareChart() {
+  const gd = document.getElementById('cmp-chart');
+  if (!gd || !gd.data || !gd.data.length) return;
+  const ch = (document.getElementById('cmp-channel').value || 'success').replace(/[^\w.-]+/g, '_');
+  Plotly.downloadImage(gd, {
+    format: 'png', scale: 2,
+    width: gd.clientWidth, height: gd.clientHeight,
+    filename: `compare_${ch}`,
+  });
+}
+
 function renderCompareChart(result) {
   const x = result.x;
+  // X-axis spans the actual swept range so changing sweep_min/sweep_max and
+  // regenerating rescales the axis with the data, rather than leaving it pinned
+  // to a fixed per-channel default that just clips the lines.
+  const xmin = x.length ? x[0] : undefined;
+  const xmax = x.length ? x[x.length - 1] : undefined;
   const traces = [];
+  const bandForLine = {};   // line trace index -> its band trace index (if any)
   result.policies.forEach((p, i) => {
     const color = CMP_COLORS[i % CMP_COLORS.length];
     // min-max band (skip when a single seed has no spread)
+    let bandIdx = null;
     if (p.n_seeds > 1) {
+      bandIdx = traces.length;
       traces.push({
         x: [...x, ...x.slice().reverse()],
         y: [...p.max, ...p.min.slice().reverse()],
@@ -1460,6 +1488,7 @@ function renderCompareChart(result) {
         type: 'scatter', mode: 'none', showlegend: false, hoverinfo: 'skip',
       });
     }
+    if (bandIdx != null) bandForLine[traces.length] = bandIdx;
     traces.push({
       x, y: p.mean, type: 'scatter', mode: 'lines',
       name: `${p.label} (n=${p.n_seeds} seed${p.n_seeds === 1 ? '' : 's'})`,
@@ -1485,13 +1514,28 @@ function renderCompareChart(result) {
     margin: {l: 50, r: 10, t: 28, b: 44},
     xaxis: {
       title: {text: result.xlabel, font: {size: 11}}, gridcolor: '#374151',
-      range: result.xlim != null ? [0, result.xlim] : undefined,
+      range: xmin != null ? [xmin, xmax] : undefined,
     },
     yaxis: {title: {text: result.ylabel, font: {size: 11}}, gridcolor: '#374151', range: [0, 100]},
     legend: {font: {size: 10}},
     shapes, annotations,
   };
   Plotly.react('cmp-chart', traces, layout, plotCfg);
+  document.getElementById('cmp-dl').disabled = false;   // chart now downloadable
+  // Toggling a policy's line in the legend should also hide/show its min-max
+  // band. Pairing is irregular (band only when n_seeds > 1), so look it up.
+  const cmpDiv = document.getElementById('cmp-chart');
+  cmpDiv._bandForLine = bandForLine;
+  if (!cmpDiv._bandToggleWired) {
+    cmpDiv._bandToggleWired = true;
+    cmpDiv.on('plotly_legendclick', (ev) => {
+      const band = cmpDiv._bandForLine[ev.curveNumber];
+      if (band == null) return true;
+      const lineVisible = cmpDiv.data[ev.curveNumber].visible !== 'legendonly';
+      Plotly.restyle(cmpDiv, {visible: lineVisible ? 'legendonly' : true}, [band]);
+      return true;  // keep Plotly's default toggle on the clicked line
+    });
+  }
   setTimeout(resizeCompareChart, 0);
 }
 
