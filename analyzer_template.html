@@ -322,12 +322,14 @@
   }
   #cmp-gen:hover:not(:disabled) { background: #1d4ed8; }
   #cmp-gen:disabled { background: var(--border); color: var(--muted); cursor: default; }
-  #cmp-dl {
+  #cmp-dl, #cmp-dl-data {
     background: transparent; color: var(--text); border: 1px solid var(--border);
     padding: 7px 14px; border-radius: 4px; cursor: pointer; font: inherit;
   }
-  #cmp-dl:hover:not(:disabled) { border-color: var(--muted); background: var(--panel); }
-  #cmp-dl:disabled { color: var(--muted); cursor: default; }
+  #cmp-dl:hover:not(:disabled), #cmp-dl-data:hover:not(:disabled) {
+    border-color: var(--muted); background: var(--panel);
+  }
+  #cmp-dl:disabled, #cmp-dl-data:disabled { color: var(--muted); cursor: default; }
   #cmp-status { flex-shrink: 0; padding: 6px 12px; font-size: 11px; color: var(--muted); min-height: 0; }
   #cmp-status.err { color: var(--red); }
   #cmp-chart { flex: 1; min-height: 0; margin: 0 8px 8px; }
@@ -459,6 +461,7 @@
       </div>
       <button id="cmp-gen" onclick="onGenerateCompare()">▶ Generate</button>
       <button id="cmp-dl" onclick="downloadCompareChart()" disabled>⬇ PNG</button>
+      <button id="cmp-dl-data" onclick="downloadCompareData()" disabled>⬇ CSV</button>
     </div>
     <div id="cmp-status"></div>
     <div id="cmp-chart"></div>
@@ -1453,20 +1456,60 @@ function pollCompare(cid) {
 
 const CMP_COLORS = COLORS;
 
+// The most recent renderCompareChart() result, kept so the download buttons can
+// re-export the underlying data without recomputing.
+let lastCompareResult = null;
+
+function cmpDownloadName() {
+  const ch = (document.getElementById('cmp-channel').value || 'success').replace(/[^\w.-]+/g, '_');
+  return `compare_${ch}`;
+}
+
 // Export the rendered Compare chart as a PNG. The modebar is hidden (plotCfg),
 // so this is the only way to download; filename follows the success channel.
 function downloadCompareChart() {
   const gd = document.getElementById('cmp-chart');
   if (!gd || !gd.data || !gd.data.length) return;
-  const ch = (document.getElementById('cmp-channel').value || 'success').replace(/[^\w.-]+/g, '_');
   Plotly.downloadImage(gd, {
     format: 'png', scale: 2,
     width: gd.clientWidth, height: gd.clientHeight,
-    filename: `compare_${ch}`,
+    filename: cmpDownloadName(),
   });
 }
 
+function csvCell(v) {
+  const s = String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+// Export the underlying curve data (x + each policy's mean/min/max) as CSV, for
+// replotting elsewhere. One row per swept threshold; min/max equal mean for
+// single-seed policies (no band).
+function downloadCompareData() {
+  const result = lastCompareResult;
+  if (!result || !result.x || !result.x.length) return;
+  const x = result.x;
+  const header = [result.xlabel || 'threshold'];
+  const columns = [x];
+  result.policies.forEach(p => {
+    header.push(`${p.label} mean`, `${p.label} min`, `${p.label} max`);
+    columns.push(p.mean, p.min, p.max);
+  });
+  const rows = [header.map(csvCell).join(',')];
+  for (let r = 0; r < x.length; r++) {
+    rows.push(columns.map(col => csvCell(col[r])).join(','));
+  }
+  const blob = new Blob([rows.join('\n') + '\n'], {type: 'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${cmpDownloadName()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function renderCompareChart(result) {
+  lastCompareResult = result;
   const x = result.x;
   // X-axis spans the actual swept range so changing sweep_min/sweep_max and
   // regenerating rescales the axis with the data, rather than leaving it pinned
@@ -1521,7 +1564,8 @@ function renderCompareChart(result) {
     shapes, annotations,
   };
   Plotly.react('cmp-chart', traces, layout, plotCfg);
-  document.getElementById('cmp-dl').disabled = false;   // chart now downloadable
+  document.getElementById('cmp-dl').disabled = false;        // PNG now downloadable
+  document.getElementById('cmp-dl-data').disabled = false;   // CSV now downloadable
   // Toggling a policy's line in the legend should also hide/show its min-max
   // band. Pairing is irregular (band only when n_seeds > 1), so look it up.
   const cmpDiv = document.getElementById('cmp-chart');
