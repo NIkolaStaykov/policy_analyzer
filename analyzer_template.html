@@ -313,6 +313,8 @@
     display: flex; align-items: center; gap: 6px;
     font-size: 10px; color: var(--muted); padding: 2px 0;
   }
+  .seedrow .seedcb { width: 12px; height: 12px; margin: 0; flex-shrink: 0; cursor: pointer; }
+  .seedrow .seedcb:disabled { cursor: default; }
   .seedrow .sdot { flex-shrink: 0; }
   .seedrow.ok .sdot { color: var(--green); }
   .seedrow.failed .sdot { color: var(--red); }
@@ -335,6 +337,7 @@
     padding: 4px 6px; border-radius: 3px; font: inherit; font-size: 11px;
   }
   .cmp-field input[type=number] { width: 70px; }
+  #cmp-smode { max-width: 230px; }
   .cmp-field.chk { flex-direction: row; align-items: center; gap: 5px; }
   #cmp-gen {
     background: #2563eb; color: #fff; border: none;
@@ -468,6 +471,14 @@
         <label for="cmp-abs">abs</label>
       </div>
       <div class="cmp-field">
+        <label>Criterion</label>
+        <select id="cmp-smode" onchange="onSuccessModeChange()">
+          <option value="hold">error within thresh for hold steps</option>
+          <option value="average">avg rollout error below thresh</option>
+          <option value="average_above">mean success metric above thresh</option>
+        </select>
+      </div>
+      <div class="cmp-field">
         <label>Sweep min</label>
         <input type="number" id="cmp-smin" step="any" value="0">
       </div>
@@ -479,9 +490,13 @@
         <label>Points</label>
         <input type="number" id="cmp-npts" value="151" min="2" max="501">
       </div>
-      <div class="cmp-field">
+      <div class="cmp-field" id="cmp-hold-field">
         <label>Hold steps</label>
         <input type="number" id="cmp-hold" value="10" min="1">
+      </div>
+      <div class="cmp-field" id="cmp-skip-field" style="display:none">
+        <label>Skip first (s)</label>
+        <input type="number" id="cmp-skip" step="any" value="0" min="0">
       </div>
       <button id="cmp-gen" onclick="onGenerateCompare()">▶ Generate</button>
       <button id="cmp-dl" onclick="downloadCompareChart()" disabled>⬇ PNG</button>
@@ -1239,6 +1254,7 @@ const openQueues = new Set();       // queue names whose policy list is expanded
 // Pinned queue names, persisted across sessions; rendered in their own section.
 const pinnedQueues = new Set(JSON.parse(localStorage.getItem('cmpPinnedQueues') || '[]'));
 const openCards = new Set();        // policy keys whose seed list is expanded
+const deselectedSeeds = new Set();  // run_names excluded from their policy (default: all in)
 const selectedPolicies = new Map(); // key -> {label, sensor_bundle, env_name, run_names[]}
 let cmpEnv = null;                  // env_name shared by current selection
 const cmpConfigCache = {};          // env_name -> /api/compare/config result
@@ -1346,13 +1362,16 @@ function policyCard(queue, p) {
   if (selectedPolicies.has(key)) card.classList.add('selected');
   if (openCards.has(key)) card.classList.add('open');
 
+  const used = policyRunNames(p).length;
   const head = document.createElement('div');
   head.className = 'pcard-head';
   const bundle = p.sensor_bundle ? `<span class="pcard-bundle">${p.sensor_bundle}</span>` : '';
   head.innerHTML =
     `<input type="checkbox" ${selectedPolicies.has(key) ? 'checked' : ''} ${disabled ? 'disabled' : ''}>` +
     `<span class="pcard-label">${p.label} ${bundle}</span>` +
-    `<span class="pcard-badge">×${p.n_seeds}${p.runnable_seeds < p.n_seeds ? ' (' + p.runnable_seeds + ' ok)' : ''}</span>` +
+    `<span class="pcard-badge">×${p.n_seeds}` +
+      `${p.runnable_seeds < p.n_seeds ? ' (' + p.runnable_seeds + ' ok)' : ''}` +
+      `${used < runnable.length ? ' · ' + used + ' used' : ''}</span>` +
     `<span class="pcard-twist">▸</span>`;
   // Checkbox toggles selection; clicking elsewhere on the head expands the stack.
   const cb = head.querySelector('input');
@@ -1365,18 +1384,34 @@ function policyCard(queue, p) {
 
   const seeds = document.createElement('div');
   seeds.className = 'pcard-seeds';
-  seeds.innerHTML = p.seeds.map(s => {
+  p.seeds.forEach(s => {
     const cls = s.result === 'ok' ? 'ok' : 'failed';
+    const included = s.runnable && !deselectedSeeds.has(s.run_name);
     const open = s.runnable
       ? `<a class="sopen" onclick="openRunAnalysis('${s.run_name}')">open ▸</a>`
       : `<span class="sopen">${s.result}</span>`;
-    return `<div class="seedrow ${cls}">` +
+    const row = document.createElement('div');
+    row.className = `seedrow ${cls}`;
+    row.innerHTML =
+      `<input type="checkbox" class="seedcb" ${included ? 'checked' : ''} ${s.runnable ? '' : 'disabled'}>` +
       `<span class="sdot">●</span>` +
       `<span class="sname">seed ${s.seed == null ? '?' : s.seed} · ${s.run_name}</span>` +
-      open + `</div>`;
-  }).join('');
+      open;
+    if (s.runnable) {
+      const scb = row.querySelector('.seedcb');
+      scb.onclick = (e) => { e.stopPropagation(); toggleSeed(key, queue, p, s.run_name, scb.checked); };
+    }
+    seeds.appendChild(row);
+  });
   card.appendChild(seeds);
   return card;
+}
+
+// Runnable seeds a policy contributes — all by default, minus any deselected.
+function policyRunNames(p) {
+  return p.seeds
+    .filter(s => s.runnable && !deselectedSeeds.has(s.run_name))
+    .map(s => s.run_name);
 }
 
 function togglePolicySelect(key, queue, p, on) {
@@ -1392,12 +1427,25 @@ function togglePolicySelect(key, queue, p, on) {
       label: p.label,
       sensor_bundle: p.sensor_bundle,
       env_name: p.env_name,
-      run_names: p.seeds.filter(s => s.runnable).map(s => s.run_name),
+      run_names: policyRunNames(p),
     });
   }
   if (!selectedPolicies.size) cmpEnv = null;
   renderQueues();               // reflect selection / env reset across cards
   if (cmpEnv) loadCompareConfig(cmpEnv);
+  updateGenEnabled();
+}
+
+// Include/exclude one seed. If the policy is selected, keep its run_names in
+// sync; deselecting the last included seed deselects the whole policy.
+function toggleSeed(key, queue, p, run_name, on) {
+  if (on) deselectedSeeds.delete(run_name); else deselectedSeeds.add(run_name);
+  if (selectedPolicies.has(key)) {
+    const run_names = policyRunNames(p);
+    if (!run_names.length) { togglePolicySelect(key, queue, p, false); return; }
+    selectedPolicies.get(key).run_names = run_names;
+  }
+  renderQueues();
   updateGenEnabled();
 }
 
@@ -1440,9 +1488,20 @@ function applyCompareConfig(cfg) {
   document.getElementById('cmp-smax').value = cfg.sweep_max;
   document.getElementById('cmp-npts').value = cfg.n_points;
   document.getElementById('cmp-hold').value = cfg.hold_steps;
+  document.getElementById('cmp-skip').value = cfg.skip_first != null ? cfg.skip_first : 0;
+  document.getElementById('cmp-smode').value = cfg.success_mode || 'hold';
+  onSuccessModeChange();   // show the field that matches the criterion
   // Stash non-edited config (units/labels/ref) for the POST + plot.
   document.getElementById('cmp-controls').dataset.cfg = JSON.stringify(cfg);
   updateGenEnabled();
+}
+
+// Show only the parameter relevant to the chosen success criterion: hold-steps
+// for the sequential-hold mode, skip-first for either rollout-average mode.
+function onSuccessModeChange() {
+  const avg = document.getElementById('cmp-smode').value.startsWith('average');
+  document.getElementById('cmp-hold-field').style.display = avg ? 'none' : '';
+  document.getElementById('cmp-skip-field').style.display = avg ? '' : 'none';
 }
 
 async function openRunAnalysis(run_name) {
@@ -1470,7 +1529,9 @@ function buildCriterion() {
     sweep_min: parseFloat(document.getElementById('cmp-smin').value),
     sweep_max: parseFloat(document.getElementById('cmp-smax').value),
     n_points: parseInt(document.getElementById('cmp-npts').value) || 151,
+    success_mode: document.getElementById('cmp-smode').value,
     hold_steps: parseInt(document.getElementById('cmp-hold').value) || 10,
+    skip_first: parseFloat(document.getElementById('cmp-skip').value) || 0,
   };
 }
 
@@ -1619,8 +1680,13 @@ function renderCompareChart(result) {
     });
   }
 
+  const skipNote = `skip first ${result.skip_first ?? 0}s (${result.skip_steps ?? 0} steps)`;
+  const critNote =
+    result.success_mode === 'average' ? `avg error below thr · ${skipNote}`
+    : result.success_mode === 'average_above' ? `mean metric above thr · ${skipNote}`
+    : `hold ${result.hold_steps} steps`;
   const layout = {
-    ...basePlotLayout('Success rate vs threshold'),
+    ...basePlotLayout(`Success rate vs threshold · ${critNote}`),
     showlegend: true,
     margin: {l: 50, r: 10, t: 28, b: 44},
     xaxis: {

@@ -126,6 +126,8 @@ def _load_compare_cache(run_name: str, mode: str) -> dict | None:
             "n_rollouts": int(z["_n_rollouts"]),
             "env_name": str(z["_env_name"]),
             "sensor_bundle": str(z["_sensor_bundle"]),
+            # Older caches predate _dt; None disables seconds→steps conversion.
+            "dt": float(z["_dt"]) if "_dt" in z.files else None,
         }
     except Exception:
         return None

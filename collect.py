@@ -390,6 +390,7 @@ def run_eval_rollouts(
           "channels":   {name -> float32 array [N, T]},   # N rollouts, T steps
           "n_rollouts": int,
           "episode_length": int,
+          "dt": float,                                     # seconds per step
         }
     """
     eval_env = handles["eval_env"]
@@ -430,6 +431,7 @@ def run_eval_rollouts(
         "channels": channels,
         "n_rollouts": int(n_rollouts),
         "episode_length": episode_length,
+        "dt": float(eval_env.dt),
     }
 
 

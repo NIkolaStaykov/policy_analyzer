@@ -65,6 +65,7 @@ def main() -> int:
             _channels=np.array(sorted(channels.keys())),
             _n_rollouts=np.array(result["n_rollouts"]),
             _episode_length=np.array(result["episode_length"]),
+            _dt=np.array(result["dt"]),
             _mode=np.array(args.mode),
             _env_name=np.array(handles["env_name"]),
             _sensor_bundle=np.array(str(handles["env_cfg"].sensor_bundle)),
