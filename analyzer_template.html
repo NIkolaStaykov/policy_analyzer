@@ -1257,6 +1257,7 @@ const openCards = new Set();        // policy keys whose seed list is expanded
 const deselectedSeeds = new Set();  // run_names excluded from their policy (default: all in)
 const selectedPolicies = new Map(); // key -> {label, sensor_bundle, env_name, run_names[]}
 let cmpEnv = null;                  // env_name shared by current selection
+let appliedConfigEnv = null;        // env whose defaults are currently in the form
 const cmpConfigCache = {};          // env_name -> /api/compare/config result
 let comparePollTimer = null;
 
@@ -1463,12 +1464,17 @@ function updateGenEnabled() {
 }
 
 async function loadCompareConfig(env) {
+  // Applying the per-env defaults overwrites the form (criterion, sweep bounds,
+  // …). Do it only when the env actually changes, so selecting/deselecting
+  // seeds within one env keeps the user's current edits.
+  if (env === appliedConfigEnv) return;
   let cfg = cmpConfigCache[env];
   if (!cfg) {
     cfg = await fetch(`/api/compare/config?env=${encodeURIComponent(env)}`).then(r => r.json());
     cmpConfigCache[env] = cfg;
   }
   applyCompareConfig(cfg);
+  appliedConfigEnv = env;
 }
 
 function applyCompareConfig(cfg) {
