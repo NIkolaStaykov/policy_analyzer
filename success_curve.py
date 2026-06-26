@@ -30,13 +30,14 @@ _DEG_PER_RAD = 180.0 / np.pi
 # (e.g. radians→degrees); sweep/ref/xlim are all expressed in DISPLAY units.
 SUCCESS_CONFIGS: dict[str, dict] = {
     "TesolloDownwardsRotateZ": {
-        "channel": "info.ori_error",
+        "channel": "reward/success_per_step",
         "abs": False,
-        "unit_scale": _DEG_PER_RAD,
-        "sweep_min": 0.0, "sweep_max": 18.0, "n_points": 151,
-        "xlabel": "orientation-error threshold (deg)", "xlim": 10.0,
+        "unit_scale": 1.0,
+        "sweep_min": 0.0, "sweep_max": 1.0, "n_points": 151,
+        "xlabel": "min success fraction", "xlim": 1.0,
+        "success_mode": "average_above",
         "hold_steps": 10,
-        "ref_value": 3.0, "ref_label": "train tol (3°)",
+        "ref_value": None, "ref_label": "",
     },
     "TesolloCubePinch": {
         "channel": "info.force_error",
@@ -128,7 +129,7 @@ def _seed_curve_average(
     means = arr[:, skip:].mean(axis=1)          # [N]
     n = arr.shape[0]
     # success rate at each threshold = fraction of rollouts on the success side
-    cmp = (means[None, :] > sweep_raw[:, None]) if above else (means[None, :] < sweep_raw[:, None])
+    cmp = (means[None, :] >= sweep_raw[:, None]) if above else (means[None, :] < sweep_raw[:, None])
     rates = cmp.sum(axis=1) / n
     return rates * 100.0
 

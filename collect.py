@@ -73,11 +73,16 @@ def list_checkpoints(log_dir: Path) -> list[str]:
     )
 
 
-def restore_policy(log_dir: Path, checkpoint_step: str | None = None):
+def restore_policy(
+    log_dir: Path,
+    checkpoint_step: str | None = None,
+    config_overrides: dict | None = None,
+):
     """Restore env + inference fn from a logs/<run> checkpoint dir.
 
     Mirrors eval_runs.eval_run's restore path (lines ~100-150) but returns the
-    handles instead of rendering video.
+    handles instead of rendering video. config_overrides is applied on top of
+    the run's config.json (Compare-tab benchmarks).
     """
     env_name = eval_runs.extract_env_name(log_dir.name)
     ckpt_dir = log_dir / "checkpoints"
@@ -91,6 +96,11 @@ def restore_policy(log_dir: Path, checkpoint_step: str | None = None):
                     env_cfg[k] = v
                 except Exception:
                     pass  # ConfigDict rejects keys absent from the schema
+
+    if config_overrides:
+        from policy_analyzer import benchmarks
+
+        benchmarks.apply_overrides(env_cfg, config_overrides)
 
     ckpt_subdirs = sorted(
         [d for d in ckpt_dir.iterdir() if d.is_dir()], key=lambda d: int(d.name)

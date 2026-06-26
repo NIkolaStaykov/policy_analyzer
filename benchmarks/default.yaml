@@ -1,0 +1,5 @@
+name: default
+label: "Default (training config)"
+description: "No overrides — each policy is evaluated with its own training config."
+envs: ["*"]
+env_overrides: {}

@@ -459,6 +459,12 @@
         </select>
       </div>
       <div class="cmp-field">
+        <label>Benchmark</label>
+        <select id="cmp-benchmark" title="Environment-config preset to evaluate against">
+          <option value="default">Default (training config)</option>
+        </select>
+      </div>
+      <div class="cmp-field">
         <label>Rollouts / seed</label>
         <input type="number" id="cmp-nroll" value="50" min="1" max="512">
       </div>
@@ -1259,6 +1265,7 @@ const selectedPolicies = new Map(); // key -> {label, sensor_bundle, env_name, r
 let cmpEnv = null;                  // env_name shared by current selection
 let appliedConfigEnv = null;        // env whose defaults are currently in the form
 const cmpConfigCache = {};          // env_name -> /api/compare/config result
+const cmpBenchmarkCache = {};       // env_name -> /api/compare/benchmarks result
 let comparePollTimer = null;
 
 function resizeCompareChart() {
@@ -1474,7 +1481,25 @@ async function loadCompareConfig(env) {
     cmpConfigCache[env] = cfg;
   }
   applyCompareConfig(cfg);
+  await loadBenchmarks(env);
   appliedConfigEnv = env;
+}
+
+async function loadBenchmarks(env) {
+  let list = cmpBenchmarkCache[env];
+  if (!list) {
+    try {
+      list = await fetch(`/api/compare/benchmarks?env=${encodeURIComponent(env)}`).then(r => r.json());
+    } catch { list = []; }
+    if (!list || !list.length) list = [{name: 'default', label: 'Default (training config)'}];
+    cmpBenchmarkCache[env] = list;
+  }
+  const sel = document.getElementById('cmp-benchmark');
+  const prev = sel.value;
+  sel.innerHTML = list
+    .map(b => `<option value="${b.name}" title="${(b.description || '').replace(/"/g, '&quot;')}">${b.label}</option>`)
+    .join('');
+  sel.value = list.some(b => b.name === prev) ? prev : (list[0] ? list[0].name : 'default');
 }
 
 function applyCompareConfig(cfg) {
@@ -1544,6 +1569,7 @@ function buildCriterion() {
 async function onGenerateCompare() {
   if (!selectedPolicies.size) return;
   const mode = document.getElementById('cmp-mode').value;
+  const benchmark = document.getElementById('cmp-benchmark').value || 'default';
   const n_rollouts = parseInt(document.getElementById('cmp-nroll').value) || 50;
   const criterion = buildCriterion();
   if (!criterion.channel) return;
@@ -1555,7 +1581,7 @@ async function onGenerateCompare() {
   const resp = await fetch('/api/compare', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({mode, n_rollouts, criterion, policies}),
+    body: JSON.stringify({mode, benchmark, n_rollouts, criterion, policies}),
   });
   const {compare_id} = await resp.json();
   pollCompare(compare_id);

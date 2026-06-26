@@ -39,21 +39,26 @@ def main() -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--mode", choices=("det", "sto"), default="det")
     ap.add_argument("--n-rollouts", type=int, default=50)
+    ap.add_argument(
+        "--benchmark", default="default",
+        help="benchmark name (env-config overrides) — see policy_analyzer.benchmarks",
+    )
     args = ap.parse_args()
 
     from pathlib import Path
 
     # Heavy imports (JAX etc.) happen here, after CUDA_VISIBLE_DEVICES is set.
     import numpy as np
-    from policy_analyzer import collect
+    from policy_analyzer import benchmarks, collect
     from policy_analyzer.worker import _is_oom
 
     log_dir = Path(args.log_dir)
     out = Path(args.out)
     deterministic = args.mode == "det"
+    overrides = benchmarks.overrides_for(args.benchmark)
 
     try:
-        handles = collect.restore_policy(log_dir)
+        handles = collect.restore_policy(log_dir, config_overrides=overrides)
         result = collect.run_eval_rollouts(
             handles, n_rollouts=args.n_rollouts, deterministic=deterministic
         )
@@ -67,6 +72,7 @@ def main() -> int:
             _episode_length=np.array(result["episode_length"]),
             _dt=np.array(result["dt"]),
             _mode=np.array(args.mode),
+            _benchmark=np.array(args.benchmark),
             _env_name=np.array(handles["env_name"]),
             _sensor_bundle=np.array(str(handles["env_cfg"].sensor_bundle)),
             **channels,

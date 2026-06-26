@@ -1,0 +1,9 @@
+name: downwards_rotate_symmetric_band_90_120
+label: "Downwards rotate — symmetric band (90–120°)"
+description: "Target z-rotation sampled from [90°, 120°] u [-120°, -90°]."
+envs: ["TesolloDownwardsRotateZ"]
+env_overrides:
+  curriculum.enable: false
+  symmetric_target: true
+  min_target_angle: 1.5707963267948966  # 90 deg
+  max_target_angle: 2.0943951023931953  # 120 deg
