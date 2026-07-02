@@ -1,0 +1,48 @@
+file,column,category,unit,description
+*,queue,identifier,,Experiment queue the run belongs to (run_queue.py batch).
+*,env_name,identifier,,MuJoCo Playground environment / task (TesolloCubePinch or TesolloDownwardsRotateZ).
+*,exp_name,identifier,,Unique training run name; matches the checkpoint directory under logs/.
+*,sensor_bundle,identifier,,"Observation/sensor bundle variant (the swept policy axis): none, baseline, proprio.target, proprio.delta, force.magnitude."
+*,seed,identifier,,Random seed for the run.
+*,run_idx,identifier,,Index of the run within its queue.
+*,result,identifier,,Queue outcome: ok or failed.
+run_parameters_network.csv,policy_hidden_layer_sizes,network,units per layer,"Actor (policy) MLP hidden layer widths, dash-separated."
+run_parameters_network.csv,value_hidden_layer_sizes,network,units per layer,"Critic (value) MLP hidden layer widths, dash-separated."
+run_parameters_network.csv,policy_obs_key,network,,Observation group fed to the policy network (state = actor observation).
+run_parameters_network.csv,value_obs_key,network,,Observation group fed to the value network (privileged_state = asymmetric critic input).
+run_parameters_network.csv,normalize_observations,network,bool,Whether running observation normalization is applied before the networks.
+run_parameters_domain_randomization.csv,domain_randomization,domain_rand,bool,Whether domain randomization was enabled for the run (CLI flag).
+run_parameters_domain_randomization.csv,cube_size_min,domain_rand,scale factor,"Lower bound of per-episode cube-size scaling. For TesolloDownwardsRotateZ the range is defined inside the env's cube-size-only domain_randomize (not printed in the env config); shown here as [0.85, 1.15] when the flag is on."
+run_parameters_domain_randomization.csv,cube_size_max,domain_rand,scale factor,Upper bound of per-episode cube-size scaling. See cube_size_min note for the downwards env.
+run_parameters_domain_randomization.csv,cube_mass_dr_min,domain_rand,scale factor,"Lower bound of cube-mass randomization (TesolloCubePinch only). [1.0, 1.0] means mass is not randomized. Empty for the downwards env."
+run_parameters_domain_randomization.csv,cube_mass_dr_max,domain_rand,scale factor,Upper bound of cube-mass randomization (TesolloCubePinch only).
+run_parameters_domain_randomization.csv,cube_pos_dr_min,domain_rand,m,"Lower bound of cube initial-position randomization (TesolloCubePinch only). [0,0] means no position randomization."
+run_parameters_domain_randomization.csv,cube_pos_dr_max,domain_rand,m,Upper bound of cube initial-position randomization (TesolloCubePinch only).
+run_parameters_domain_randomization.csv,obs_noise_level,domain_rand,multiplier,Global observation-noise level applied on top of per-signal scales (0 = off).
+run_parameters_domain_randomization.csv,obs_noise_scale_joint_pos,domain_rand,rad,Observation-noise scale on joint positions.
+run_parameters_domain_randomization.csv,obs_noise_scale_joint_vel,domain_rand,rad/s,Observation-noise scale on joint velocities.
+run_parameters_domain_randomization.csv,obs_noise_scales_json,domain_rand,JSON,Full per-signal observation-noise scale dict as JSON (complete record; signal keys differ by env).
+run_parameters_domain_randomization.csv,perturbation_enable,domain_rand,bool,Whether random external pushes (pert_config) were applied. False for all runs here.
+run_parameters_domain_randomization.csv,force_target_sinusoid,domain_rand,bool,Whether the grasp force target follows a phase-randomized sinusoid (TesolloCubePinch sinusoid queues). Empty = constant set-and-hold force target.
+run_parameters_domain_randomization.csv,force_target_period,domain_rand,s,Period of the sinusoidal force target when force_target_sinusoid is true.
+run_parameters_domain_randomization.csv,force_target_range_min,domain_rand,N,Lower bound of the commanded grasp-force target range (TesolloCubePinch).
+run_parameters_domain_randomization.csv,force_target_range_max,domain_rand,N,Upper bound of the commanded grasp-force target range (TesolloCubePinch).
+run_parameters_training.csv,num_timesteps,training,env steps,Total environment steps of training.
+run_parameters_training.csv,num_envs,training,count,Number of parallel environments.
+run_parameters_training.csv,batch_size,training,count,PPO minibatch size.
+run_parameters_training.csv,num_minibatches,training,count,Number of minibatches per PPO update.
+run_parameters_training.csv,num_updates_per_batch,training,count,Number of gradient updates per collected batch.
+run_parameters_training.csv,unroll_length,training,steps,Rollout unroll length per environment before an update.
+run_parameters_training.csv,learning_rate,training,,Optimizer learning rate.
+run_parameters_training.csv,entropy_cost,training,,PPO entropy bonus coefficient.
+run_parameters_training.csv,discounting,training,,Reward discount factor (gamma).
+run_parameters_training.csv,reward_scaling,training,,Scalar multiplier applied to rewards.
+run_parameters_training.csv,max_grad_norm,training,,Gradient-norm clipping threshold. Empty = not set (unclipped) for that run.
+run_parameters_training.csv,episode_length,training,control steps,Episode horizon in control steps.
+run_parameters_training.csv,action_repeat,training,count,Number of physics steps each action is held (1 = no repeat).
+run_parameters_training.csv,num_evals,training,count,Number of evaluation points during training (also sets checkpoint cadence).
+run_parameters_training.csv,num_resets_per_eval,training,count,Number of env resets performed per evaluation.
+run_parameters_training.csv,training_metrics_steps,training,env steps,Interval between logged training-metric points.
+run_parameters_training.csv,ctrl_dt,training,s,Control timestep (policy decision interval).
+run_parameters_training.csv,sim_dt,training,s,Physics simulation timestep.
+run_parameters_training.csv,ema_alpha,training,,EMA smoothing coefficient on actions/targets (control-smoothing setup parameter).
