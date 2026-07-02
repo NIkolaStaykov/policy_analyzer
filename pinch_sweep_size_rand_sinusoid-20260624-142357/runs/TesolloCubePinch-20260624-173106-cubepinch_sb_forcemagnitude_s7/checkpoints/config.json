@@ -1,0 +1,97 @@
+{
+    "action_repeat": 1,
+    "ctrl_dt": 0.05,
+    "cube_pos_offset": [
+        0.0,
+        0.0
+    ],
+    "cube_size_scale": 1.0,
+    "domain_rand": {
+        "actuator_kp": [
+            1.0,
+            1.0
+        ],
+        "cube_mass": [
+            1.0,
+            1.0
+        ],
+        "cube_pos": [
+            0.0,
+            0.0
+        ],
+        "cube_size": [
+            0.85,
+            1.15
+        ]
+    },
+    "ema_alpha": 0.15,
+    "episode_length": 80,
+    "force_target_period": 2.0,
+    "force_target_range": [
+        2.0,
+        5.0
+    ],
+    "force_target_sinusoid": true,
+    "force_tolerance": 0.75,
+    "ghost_cube": false,
+    "impl": "warp",
+    "nconmax": 409600,
+    "njmax": 1024,
+    "obs_noise": {
+        "bias_scales": {
+            "fingertip_force_dirs": 0.0,
+            "fingertip_forces": 0.0,
+            "joint_pos": 0.0,
+            "joint_vel": 0.0,
+            "motor_targets": 0.0
+        },
+        "level": 0.0,
+        "scales": {
+            "fingertip_force_dirs": 0.0,
+            "fingertip_forces": 0.0,
+            "joint_pos": 0.001,
+            "joint_vel": 0.01,
+            "motor_targets": 0.0
+        }
+    },
+    "pert_config": {
+        "angular_velocity_pert": [
+            0.0,
+            0.5
+        ],
+        "enable": false,
+        "linear_velocity_pert": [
+            0.0,
+            3.0
+        ],
+        "pert_duration_steps": [
+            1,
+            100
+        ],
+        "pert_wait_steps": [
+            60,
+            150
+        ]
+    },
+    "pid_gains": {
+        "enable": false,
+        "finger_kp": 3.0,
+        "finger_kv": 0.0,
+        "kp_per_actuator": [],
+        "kv_per_actuator": []
+    },
+    "reward_config": {
+        "scales": {
+            "action_rate": -0.005,
+            "cube_force": 5.0,
+            "fingertip_pos_per_tip": 2.0,
+            "joint_vel": -0.01
+        },
+        "success_reward": 10.0
+    },
+    "sensor_bundle": "force.magnitude",
+    "sim_dt": 0.01,
+    "success_hold_time": 0.5,
+    "use_ctrl_delta": false,
+    "weld_cube": true
+}

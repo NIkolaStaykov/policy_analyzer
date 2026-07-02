@@ -1,0 +1,6 @@
+action_mode: absolute
+curriculum.enable: false
+ema_alpha: 0.2
+max_target_angle: 2.0943951023931953
+sensor_bundle: force.magnitude
+target_hold_time: 0.05

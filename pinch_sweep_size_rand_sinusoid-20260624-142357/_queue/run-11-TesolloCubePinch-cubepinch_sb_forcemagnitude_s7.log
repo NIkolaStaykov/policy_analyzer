@@ -1,0 +1,326 @@
+Warp 1.12.1 initialized:
+   CUDA Toolkit 12.9, Driver 12.5
+   Devices:
+     "cpu"      : "x86_64"
+     "cuda:0"   : "NVIDIA GeForce RTX 4090" (24 GiB, sm_89, mempool enabled)
+   Kernel cache:
+     /home/nstaykov/.cache/warp/1.12.1
+Warp DeprecationWarning: The symbol `warp.types.warp_type_to_np_dtype` will soon be removed from the public API. It can still be accessed from `warp._src.types.warp_type_to_np_dtype` but might be changed or removed without notice.
+/local/home/nstaykov/workspace/mujoco_playground/mujoco_playground/_src/manipulation/tesollo_hand/obs.py:161: UserWarning: obs_noise.scales has keys not in active obs spec: {'fingertip_force_dirs', 'motor_targets'}
+  warnings.warn(
+Environment Config:
+action_repeat: 1
+ctrl_dt: 0.05
+cube_pos_offset:
+- 0.0
+- 0.0
+cube_size_scale: 1.0
+domain_rand:
+  actuator_kp:
+  - 1.0
+  - 1.0
+  cube_mass:
+  - 1.0
+  - 1.0
+  cube_pos:
+  - 0.0
+  - 0.0
+  cube_size:
+  - 0.85
+  - 1.15
+ema_alpha: 0.15
+episode_length: 80
+force_target_period: 2.0
+force_target_range:
+- 2.0
+- 5.0
+force_target_sinusoid: true
+force_tolerance: 0.75
+ghost_cube: false
+impl: warp
+nconmax: 409600
+njmax: 1024
+obs_noise:
+  bias_scales:
+    fingertip_force_dirs: 0.0
+    fingertip_forces: 0.0
+    joint_pos: 0.0
+    joint_vel: 0.0
+    motor_targets: 0.0
+  level: 0.0
+  scales:
+    fingertip_force_dirs: 0.0
+    fingertip_forces: 0.0
+    joint_pos: 0.001
+    joint_vel: 0.01
+    motor_targets: 0.0
+pert_config:
+  angular_velocity_pert:
+  - 0.0
+  - 0.5
+  enable: false
+  linear_velocity_pert:
+  - 0.0
+  - 3.0
+  pert_duration_steps:
+  - 1
+  - 100
+  pert_wait_steps:
+  - 60
+  - 150
+pid_gains:
+  enable: false
+  finger_kp: 3.0
+  finger_kv: 0.0
+  kp_per_actuator: []
+  kv_per_actuator: []
+reward_config:
+  scales:
+    action_rate: -0.005
+    cube_force: 5.0
+    fingertip_pos_per_tip: 2.0
+    joint_vel: -0.01
+  success_reward: 10.0
+sensor_bundle: force.magnitude
+sim_dt: 0.01
+success_hold_time: 0.5
+use_ctrl_delta: false
+weld_cube: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.995
+entropy_cost: 0.01
+episode_length: 80
+learning_rate: 0.0001
+log_training_metrics: true
+max_grad_norm: 1.0
+network_factory:
+  policy_hidden_layer_sizes: &id001 !!python/tuple
+  - 256
+  - 128
+  - 64
+  policy_obs_key: state
+  value_hidden_layer_sizes: *id001
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 8192
+num_evals: 10
+num_minibatches: 64
+num_resets_per_eval: 1
+num_timesteps: 500000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+training_metrics_steps: 20000000
+unroll_length: 40
+
+CLI overrides: {
+  "env_name": "TesolloCubePinch",
+  "suffix": "cubepinch_sb_forcemagnitude_s7",
+  "use_wandb": true,
+  "log_video_to_wandb": true,
+  "domain_randomization": true,
+  "seed": 7,
+  "num_timesteps": 500000000,
+  "num_envs": 8192,
+  "log_training_metrics": true,
+  "training_metrics_steps": 20000000,
+  "env_overrides_file": "logs/_queue/pinch_sweep_size_rand_sinusoid-20260624-142357/run-11-TesolloCubePinch-cubepinch_sb_forcemagnitude_s7-overrides.yaml"
+}
+Experiment name: TesolloCubePinch-20260624-173106-cubepinch_sb_forcemagnitude_s7
+Logs are being stored in: /local/home/nstaykov/workspace/mujoco_playground/logs/TesolloCubePinch-20260624-173106-cubepinch_sb_forcemagnitude_s7
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from WANDB_API_KEY.
+wandb: Currently logged in as: nstaykov (nikolastaykov) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.26.1
+wandb: Run data is saved locally in /local/home/nstaykov/workspace/mujoco_playground/wandb/run-20260624_173106-edae0nmb
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run TesolloCubePinch-20260624-173106-cubepinch_sb_forcemagnitude_s7
+wandb: ⭐️ View project at https://wandb.ai/nikolastaykov/mjxrl
+wandb: 🚀 View run at https://wandb.ai/nikolastaykov/mjxrl/runs/edae0nmb
+No checkpoint path provided, not restoring from checkpoint
+Checkpoint path: /local/home/nstaykov/workspace/mujoco_playground/logs/TesolloCubePinch-20260624-173106-cubepinch_sb_forcemagnitude_s7/checkpoints
+/local/home/nstaykov/workspace/mujoco_playground/mujoco_playground/_src/manipulation/tesollo_hand/obs.py:161: UserWarning: obs_noise.scales has keys not in active obs spec: {'fingertip_force_dirs', 'motor_targets'}
+  warnings.warn(
+Module mujoco.mjx.warp.ffi 98d2031 load on device 'cuda:0' took 0.40 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.smooth 26bbc02 load on device 'cuda:0' took 6.32 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.collision_driver 88f7770 load on device 'cuda:0' took 0.28 ms  (cached)
+Module _nxn_broadphase__locals__kernel_c763f4cb c763f4c load on device 'cuda:0' took 0.27 ms  (cached)
+Module _primitive_narrowphase__locals__primitive_narrowphase_072e9f5e 072e9f5 load on device 'cuda:0' took 0.37 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.constraint c567367 load on device 'cuda:0' took 0.45 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.sensor 18a78e5 load on device 'cuda:0' took 0.52 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.forward 16fbac8 load on device 'cuda:0' took 0.43 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.passive 8bfe11c load on device 'cuda:0' took 0.34 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.forward 8f5355c load on device 'cuda:0' took 0.41 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.support dd3f924 load on device 'cuda:0' took 0.27 ms  (cached)
+Module _tile_cholesky_factorize_solve__locals__cholesky_factorize_solve_fb56ecff 06a1263 load on device 'cuda:0' took 25.05 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.solver b116efb load on device 'cuda:0' took 0.47 ms  (cached)
+Module solve_init_jaref__locals__kernel_92ac5104 92ac510 load on device 'cuda:0' took 0.57 ms  (cached)
+Module mul_m_dense__locals___mul_m_dense_4674517e 4674517 load on device 'cuda:0' took 0.28 ms  (cached)
+Module update_constraint_efc__locals__kernel_81015163 8101516 load on device 'cuda:0' took 0.28 ms  (cached)
+Module update_constraint_gauss_cost__locals__kernel_266b2051 266b205 load on device 'cuda:0' took 0.27 ms  (cached)
+Module update_gradient_JTDAJ_dense_tiled__locals__kernel_f57d3998 abf76dd load on device 'cuda:0' took 0.55 ms  (cached)
+Module update_gradient_cholesky__locals__kernel_84e35302 9d5b72e load on device 'cuda:0' took 26.95 ms  (cached)
+Module linesearch_iterative__locals__kernel_94acdc55 9c914fd load on device 'cuda:0' took 0.36 ms  (cached)
+Module update_constraint_efc__locals__kernel_25737258 2573725 load on device 'cuda:0' took 0.30 ms  (cached)
+Module _contact_sort__locals__contact_sort_44d31eb2 de954a2 load on device 'cuda:0' took 0.34 ms  (cached)
+0: reward=7.495
+
+  0%|          | 0/40 [00:00<?, ?it/s]
+  5%|▌         | 2/40 [00:00<00:02, 18.15it/s]
+ 12%|█▎        | 5/40 [00:00<00:01, 23.51it/s]
+ 20%|██        | 8/40 [00:00<00:01, 23.59it/s]
+ 28%|██▊       | 11/40 [00:00<00:01, 24.08it/s]
+ 35%|███▌      | 14/40 [00:00<00:01, 23.67it/s]
+ 42%|████▎     | 17/40 [00:00<00:00, 24.31it/s]
+ 50%|█████     | 20/40 [00:00<00:00, 25.68it/s]
+ 57%|█████▊    | 23/40 [00:00<00:00, 26.32it/s]
+ 65%|██████▌   | 26/40 [00:01<00:00, 27.08it/s]
+ 72%|███████▎  | 29/40 [00:01<00:00, 26.65it/s]
+ 80%|████████  | 32/40 [00:01<00:00, 25.68it/s]
+ 88%|████████▊ | 35/40 [00:01<00:00, 25.11it/s]
+ 95%|█████████▌| 38/40 [00:01<00:00, 24.57it/s]
+100%|██████████| 40/40 [00:01<00:00, 24.84it/s]
+wandb: WARNING `fps` argument does not affect the frame rate of the video when providing a file path or raw bytes.
+20316160: mean episode reward=9.692
+40632320: mean episode reward=9.893
+
+  0%|          | 0/40 [00:00<?, ?it/s]
+  5%|▌         | 2/40 [00:00<00:02, 17.83it/s]
+ 12%|█▎        | 5/40 [00:00<00:01, 21.73it/s]
+ 20%|██        | 8/40 [00:00<00:01, 22.77it/s]
+ 28%|██▊       | 11/40 [00:00<00:01, 23.47it/s]
+ 35%|███▌      | 14/40 [00:00<00:01, 23.14it/s]
+ 42%|████▎     | 17/40 [00:00<00:00, 23.96it/s]
+ 50%|█████     | 20/40 [00:00<00:00, 24.21it/s]
+ 57%|█████▊    | 23/40 [00:00<00:00, 25.37it/s]
+ 65%|██████▌   | 26/40 [00:01<00:00, 25.86it/s]
+ 72%|███████▎  | 29/40 [00:01<00:00, 26.54it/s]
+ 80%|████████  | 32/40 [00:01<00:00, 26.66it/s]
+ 88%|████████▊ | 35/40 [00:01<00:00, 26.97it/s]
+ 95%|█████████▌| 38/40 [00:01<00:00, 27.46it/s]
+100%|██████████| 40/40 [00:01<00:00, 25.40it/s]
+wandb: WARNING `fps` argument does not affect the frame rate of the video when providing a file path or raw bytes.
+55705600: reward=8.713
+60948480: mean episode reward=8.664
+81264640: mean episode reward=6.932
+101580800: mean episode reward=7.424
+
+  0%|          | 0/40 [00:00<?, ?it/s]
+  5%|▌         | 2/40 [00:00<00:02, 17.16it/s]
+ 12%|█▎        | 5/40 [00:00<00:01, 22.66it/s]
+ 20%|██        | 8/40 [00:00<00:01, 24.84it/s]
+ 28%|██▊       | 11/40 [00:00<00:01, 25.66it/s]
+ 35%|███▌      | 14/40 [00:00<00:01, 24.52it/s]
+ 42%|████▎     | 17/40 [00:00<00:00, 23.82it/s]
+ 50%|█████     | 20/40 [00:00<00:00, 23.54it/s]
+ 57%|█████▊    | 23/40 [00:00<00:00, 23.29it/s]
+ 65%|██████▌   | 26/40 [00:01<00:00, 22.77it/s]
+ 72%|███████▎  | 29/40 [00:01<00:00, 22.27it/s]
+ 80%|████████  | 32/40 [00:01<00:00, 22.24it/s]
+ 88%|████████▊ | 35/40 [00:01<00:00, 22.79it/s]
+ 95%|█████████▌| 38/40 [00:01<00:00, 22.55it/s]
+100%|██████████| 40/40 [00:01<00:00, 22.95it/s]
+wandb: WARNING `fps` argument does not affect the frame rate of the video when providing a file path or raw bytes.
+111411200: reward=7.376
+121896960: mean episode reward=8.278
+142213120: mean episode reward=7.727
+162529280: mean episode reward=8.007
+E0624 17:37:04.064644 140336533518144 debugging.py:103] jax.debug.callback failed
+Traceback (most recent call last):
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/debugging.py", line 101, in debug_callback_impl
+    callback(*args)
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/debugging.py", line 504, in _flat_callback
+    callback(*args_, **kwargs_)
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/brax/training/logger.py", line 56, in update_episode_metrics
+    self.log_metrics()
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/brax/training/logger.py", line 87, in log_metrics
+    self._progress_fn(
+  File "/local/home/nstaykov/workspace/mujoco_playground/learning/train_jax_ppo.py", line 636, in progress
+    raise early_stop.EarlyStopException(reason)
+early_stop.EarlyStopException: divergence + sustained reward collapse: episode/sum_reward=8.007 vs best=9.893 for 3 consecutive logs (kl_mean=3.8460372929880395, v_loss=3.4438683974742887) at step 162529280
+Traceback (most recent call last):
+  File "/local/home/nstaykov/workspace/mujoco_playground/learning/train_jax_ppo.py", line 792, in <module>
+    app.run(main)
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/absl/app.py", line 367, in run
+    _run_main(main, args)
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+    sys.exit(main(argv))
+             ^^^^^^^^^^
+  File "/local/home/nstaykov/workspace/mujoco_playground/learning/train_jax_ppo.py", line 705, in main
+    make_inference_fn, params, _ = train_fn(  # pylint: disable=no-value-for-parameter
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/brax/training/agents/ppo/train.py", line 814, in train
+    training_epoch_with_timing(training_state, env_state, epoch_keys)
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/brax/training/agents/ppo/train.py", line 689, in training_epoch_with_timing
+    jax.tree_util.tree_map(lambda x: x.block_until_ready(), metrics)
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/tree_util.py", line 394, in tree_map
+    return treedef.unflatten(f(*xs) for xs in zip(*all_leaves))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/tree_util.py", line 394, in <genexpr>
+    return treedef.unflatten(f(*xs) for xs in zip(*all_leaves))
+                             ^^^^^^
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/brax/training/agents/ppo/train.py", line 689, in <lambda>
+    jax.tree_util.tree_map(lambda x: x.block_until_ready(), metrics)
+                                     ^^^^^^^^^^^^^^^^^^^^^
+jax.errors.JaxRuntimeError: INTERNAL: CpuCallback error calling callback: Traceback (most recent call last):
+  File "/local/home/nstaykov/workspace/mujoco_playground/learning/train_jax_ppo.py", line 792, in <module>
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/absl/app.py", line 367, in run
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+  File "/local/home/nstaykov/workspace/mujoco_playground/learning/train_jax_ppo.py", line 705, in main
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/brax/training/agents/ppo/train.py", line 814, in train
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/brax/training/agents/ppo/train.py", line 685, in training_epoch_with_timing
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/pmap.py", line 321, in wrapped
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/traceback_util.py", line 195, in reraise_with_filtered_traceback
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/pjit.py", line 252, in cache_miss
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/pjit.py", line 137, in _run_python_pjit
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/pjit.py", line 1177, in _pjit_call_impl_python
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/profiler.py", line 427, in wrapper
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/interpreters/pxla.py", line 381, in __call__
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/callback.py", line 815, in _wrapped_callback
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/debugging.py", line 200, in _callback
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/debugging.py", line 104, in debug_callback_impl
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/debugging.py", line 504, in _flat_callback
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/brax/training/logger.py", line 56, in update_episode_metrics
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/brax/training/logger.py", line 87, in log_metrics
+  File "/local/home/nstaykov/workspace/mujoco_playground/learning/train_jax_ppo.py", line 636, in progress
+EarlyStopException: divergence + sustained reward collapse: episode/sum_reward=8.007 vs best=9.893 for 3 consecutive logs (kl_mean=3.8460372929880395, v_loss=3.4438683974742887) at step 162529280 [executable_name='jit__mean']
+[1;34mwandb[0m: 
+[1;34mwandb[0m: 🚀 View run [33mTesolloCubePinch-20260624-173106-cubepinch_sb_forcemagnitude_s7[0m at: [34mhttps://wandb.ai/nikolastaykov/mjxrl/runs/edae0nmb[0m
+[1;34mwandb[0m: Find logs at: [1;35mwandb/run-20260624_173106-edae0nmb/logs[0m
+Exception ignored in atexit callback: <function wait_for_tokens at 0x7fa1eface700>
+Traceback (most recent call last):
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/dispatch.py", line 179, in wait_for_tokens
+W0624 17:37:05.397626 140296121812544 selector_events.py:1054] socket.send() raised exception.
+W0624 17:37:05.403079 140296121812544 selector_events.py:1054] socket.send() raised exception.
+W0624 17:37:05.403173 140296121812544 selector_events.py:1054] socket.send() raised exception.
+W0624 17:37:05.403247 140296121812544 selector_events.py:1054] socket.send() raised exception.
+W0624 17:37:05.403316 140296121812544 selector_events.py:1054] socket.send() raised exception.
+W0624 17:37:05.403372 140296121812544 selector_events.py:1054] socket.send() raised exception.
+W0624 17:37:05.403436 140296121812544 selector_events.py:1054] socket.send() raised exception.
+W0624 17:37:05.403506 140296121812544 selector_events.py:1054] socket.send() raised exception.
+    runtime_tokens.block_until_ready()
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/dispatch.py", line 172, in block_until_ready
+    token.block_until_ready()
+jax.errors.JaxRuntimeError: INTERNAL: CpuCallback error calling callback: Traceback (most recent call last):
+  File "/local/home/nstaykov/workspace/mujoco_playground/learning/train_jax_ppo.py", line 792, in <module>
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/absl/app.py", line 367, in run
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/absl/app.py", line 312, in _run_main
+  File "/local/home/nstaykov/workspace/mujoco_playground/learning/train_jax_ppo.py", line 705, in main
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/brax/training/agents/ppo/train.py", line 814, in train
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/brax/training/agents/ppo/train.py", line 685, in training_epoch_with_timing
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/pmap.py", line 321, in wrapped
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/traceback_util.py", line 195, in reraise_with_filtered_traceback
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/pjit.py", line 252, in cache_miss
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/pjit.py", line 137, in _run_python_pjit
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/pjit.py", line 1177, in _pjit_call_impl_python
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/profiler.py", line 427, in wrapper
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/interpreters/pxla.py", line 381, in __call__
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/callback.py", line 815, in _wrapped_callback
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/debugging.py", line 200, in _callback
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/debugging.py", line 104, in debug_callback_impl
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/jax/_src/debugging.py", line 504, in _flat_callback
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/brax/training/logger.py", line 56, in update_episode_metrics
+  File "/local/home/nstaykov/workspace/mujoco_playground/.venv/lib/python3.11/site-packages/brax/training/logger.py", line 87, in log_metrics
+  File "/local/home/nstaykov/workspace/mujoco_playground/learning/train_jax_ppo.py", line 636, in progress
+EarlyStopException: divergence + sustained reward collapse: episode/sum_reward=8.007 vs best=9.893 for 3 consecutive logs (kl_mean=3.8460372929880395, v_loss=3.4438683974742887) at step 162529280 [executable_name='jit__fun']

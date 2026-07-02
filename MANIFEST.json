@@ -1,0 +1,487 @@
+{
+  "queues": [
+    {
+      "queue": "pinch_sweep_size_rand-20260622-195014",
+      "n_runs": 12,
+      "runs": [
+        {
+          "idx": 0,
+          "exp_name": "TesolloCubePinch-20260622-195023-cubepinch_sb_none_s1",
+          "suffix": "cubepinch_sb_none_s1",
+          "result": "ok",
+          "seed": 1,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 1,
+          "exp_name": "TesolloCubePinch-20260622-200126-cubepinch_sb_none_s2",
+          "suffix": "cubepinch_sb_none_s2",
+          "result": "ok",
+          "seed": 2,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 2,
+          "exp_name": "TesolloCubePinch-20260622-201232-cubepinch_sb_none_s3",
+          "suffix": "cubepinch_sb_none_s3",
+          "result": "ok",
+          "seed": 3,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 3,
+          "exp_name": "TesolloCubePinch-20260622-202344-cubepinch_sb_baseline_s1",
+          "suffix": "cubepinch_sb_baseline_s1",
+          "result": "ok",
+          "seed": 1,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 4,
+          "exp_name": "TesolloCubePinch-20260622-203506-cubepinch_sb_baseline_s2",
+          "suffix": "cubepinch_sb_baseline_s2",
+          "result": "ok",
+          "seed": 2,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 5,
+          "exp_name": "TesolloCubePinch-20260622-204625-cubepinch_sb_baseline_s3",
+          "suffix": "cubepinch_sb_baseline_s3",
+          "result": "ok",
+          "seed": 3,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 6,
+          "exp_name": "TesolloCubePinch-20260622-205744-cubepinch_sb_propriotarget_s1",
+          "suffix": "cubepinch_sb_propriotarget_s1",
+          "result": "ok",
+          "seed": 1,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 7,
+          "exp_name": "TesolloCubePinch-20260622-210903-cubepinch_sb_propriotarget_s2",
+          "suffix": "cubepinch_sb_propriotarget_s2",
+          "result": "ok",
+          "seed": 2,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 8,
+          "exp_name": "TesolloCubePinch-20260622-212024-cubepinch_sb_propriotarget_s3",
+          "suffix": "cubepinch_sb_propriotarget_s3",
+          "result": "ok",
+          "seed": 3,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 9,
+          "exp_name": "TesolloCubePinch-20260622-213146-cubepinch_sb_forcemagnitude_s1",
+          "suffix": "cubepinch_sb_forcemagnitude_s1",
+          "result": "ok",
+          "seed": 1,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 10,
+          "exp_name": "TesolloCubePinch-20260622-214305-cubepinch_sb_forcemagnitude_s2",
+          "suffix": "cubepinch_sb_forcemagnitude_s2",
+          "result": "ok",
+          "seed": 2,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 11,
+          "exp_name": "TesolloCubePinch-20260622-215428-cubepinch_sb_forcemagnitude_s3",
+          "suffix": "cubepinch_sb_forcemagnitude_s3",
+          "result": "ok",
+          "seed": 3,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        }
+      ]
+    },
+    {
+      "queue": "pinch_sweep_size_rand_sinusoid-20260624-142357",
+      "n_runs": 20,
+      "runs": [
+        {
+          "idx": 0,
+          "exp_name": "TesolloCubePinch-20260624-142406-cubepinch_sb_baseline_s6",
+          "suffix": "cubepinch_sb_baseline_s6",
+          "result": "ok",
+          "seed": 6,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 1,
+          "exp_name": "TesolloCubePinch-20260624-144106-cubepinch_sb_baseline_s7",
+          "suffix": "cubepinch_sb_baseline_s7",
+          "result": "ok",
+          "seed": 7,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 2,
+          "exp_name": "TesolloCubePinch-20260624-145808-cubepinch_sb_baseline_s8",
+          "suffix": "cubepinch_sb_baseline_s8",
+          "result": "ok",
+          "seed": 8,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 3,
+          "exp_name": "TesolloCubePinch-20260624-151458-cubepinch_sb_baseline_s4",
+          "suffix": "cubepinch_sb_baseline_s4",
+          "result": "ok",
+          "seed": 4,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 4,
+          "exp_name": "TesolloCubePinch-20260624-153202-cubepinch_sb_baseline_s5",
+          "suffix": "cubepinch_sb_baseline_s5",
+          "result": "ok",
+          "seed": 5,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 5,
+          "exp_name": "TesolloCubePinch-20260624-154905-cubepinch_sb_propriotarget_s6",
+          "suffix": "cubepinch_sb_propriotarget_s6",
+          "result": "ok",
+          "seed": 6,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 6,
+          "exp_name": "TesolloCubePinch-20260624-160603-cubepinch_sb_propriotarget_s7",
+          "suffix": "cubepinch_sb_propriotarget_s7",
+          "result": "ok",
+          "seed": 7,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 7,
+          "exp_name": "TesolloCubePinch-20260624-162306-cubepinch_sb_propriotarget_s8",
+          "suffix": "cubepinch_sb_propriotarget_s8",
+          "result": "ok",
+          "seed": 8,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 8,
+          "exp_name": "TesolloCubePinch-20260624-164003-cubepinch_sb_propriotarget_s4",
+          "suffix": "cubepinch_sb_propriotarget_s4",
+          "result": "ok",
+          "seed": 4,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 9,
+          "exp_name": "TesolloCubePinch-20260624-165709-cubepinch_sb_propriotarget_s5",
+          "suffix": "cubepinch_sb_propriotarget_s5",
+          "result": "ok",
+          "seed": 5,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 10,
+          "exp_name": "TesolloCubePinch-20260624-171403-cubepinch_sb_forcemagnitude_s6",
+          "suffix": "cubepinch_sb_forcemagnitude_s6",
+          "result": "ok",
+          "seed": 6,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 11,
+          "exp_name": "TesolloCubePinch-20260624-173106-cubepinch_sb_forcemagnitude_s7",
+          "suffix": "cubepinch_sb_forcemagnitude_s7",
+          "result": "failed",
+          "seed": 7,
+          "n_checkpoints": 2,
+          "final_step": 111411200
+        },
+        {
+          "idx": 12,
+          "exp_name": "TesolloCubePinch-20260624-173716-cubepinch_sb_forcemagnitude_s8",
+          "suffix": "cubepinch_sb_forcemagnitude_s8",
+          "result": "ok",
+          "seed": 8,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 13,
+          "exp_name": "TesolloCubePinch-20260624-175411-cubepinch_sb_forcemagnitude_s4",
+          "suffix": "cubepinch_sb_forcemagnitude_s4",
+          "result": "ok",
+          "seed": 4,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 14,
+          "exp_name": "TesolloCubePinch-20260624-181110-cubepinch_sb_forcemagnitude_s5",
+          "suffix": "cubepinch_sb_forcemagnitude_s5",
+          "result": "ok",
+          "seed": 5,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 15,
+          "exp_name": "TesolloCubePinch-20260624-182805-cubepinch_sb_propriodelta_s6",
+          "suffix": "cubepinch_sb_propriodelta_s6",
+          "result": "ok",
+          "seed": 6,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 16,
+          "exp_name": "TesolloCubePinch-20260624-184508-cubepinch_sb_propriodelta_s7",
+          "suffix": "cubepinch_sb_propriodelta_s7",
+          "result": "ok",
+          "seed": 7,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 17,
+          "exp_name": "TesolloCubePinch-20260624-190210-cubepinch_sb_propriodelta_s8",
+          "suffix": "cubepinch_sb_propriodelta_s8",
+          "result": "ok",
+          "seed": 8,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 18,
+          "exp_name": "TesolloCubePinch-20260624-191904-cubepinch_sb_propriodelta_s4",
+          "suffix": "cubepinch_sb_propriodelta_s4",
+          "result": "ok",
+          "seed": 4,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        },
+        {
+          "idx": 19,
+          "exp_name": "TesolloCubePinch-20260624-193607-cubepinch_sb_propriodelta_s5",
+          "suffix": "cubepinch_sb_propriodelta_s5",
+          "result": "ok",
+          "seed": 5,
+          "n_checkpoints": 9,
+          "final_step": 501350400
+        }
+      ]
+    },
+    {
+      "queue": "pinch_sweep_size_rand_sinusoid-20260623-133237",
+      "n_runs": 15,
+      "runs": [
+        {
+          "idx": 0,
+          "exp_name": "TesolloCubePinch-20260623-133246-cubepinch_sb_none_s1",
+          "suffix": "cubepinch_sb_none_s1",
+          "result": "ok",
+          "seed": 1,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 1,
+          "exp_name": "TesolloCubePinch-20260623-134636-cubepinch_sb_none_s2",
+          "suffix": "cubepinch_sb_none_s2",
+          "result": "ok",
+          "seed": 2,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 2,
+          "exp_name": "TesolloCubePinch-20260623-140037-cubepinch_sb_none_s3",
+          "suffix": "cubepinch_sb_none_s3",
+          "result": "ok",
+          "seed": 3,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 3,
+          "exp_name": "TesolloCubePinch-20260623-141420-cubepinch_sb_baseline_s1",
+          "suffix": "cubepinch_sb_baseline_s1",
+          "result": "ok",
+          "seed": 1,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 4,
+          "exp_name": "TesolloCubePinch-20260623-142829-cubepinch_sb_baseline_s2",
+          "suffix": "cubepinch_sb_baseline_s2",
+          "result": "ok",
+          "seed": 2,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 5,
+          "exp_name": "TesolloCubePinch-20260623-144235-cubepinch_sb_baseline_s3",
+          "suffix": "cubepinch_sb_baseline_s3",
+          "result": "ok",
+          "seed": 3,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 6,
+          "exp_name": "TesolloCubePinch-20260623-145638-cubepinch_sb_propriotarget_s1",
+          "suffix": "cubepinch_sb_propriotarget_s1",
+          "result": "ok",
+          "seed": 1,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 7,
+          "exp_name": "TesolloCubePinch-20260623-151052-cubepinch_sb_propriotarget_s2",
+          "suffix": "cubepinch_sb_propriotarget_s2",
+          "result": "ok",
+          "seed": 2,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 8,
+          "exp_name": "TesolloCubePinch-20260623-152507-cubepinch_sb_propriotarget_s3",
+          "suffix": "cubepinch_sb_propriotarget_s3",
+          "result": "ok",
+          "seed": 3,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 9,
+          "exp_name": "TesolloCubePinch-20260623-153920-cubepinch_sb_forcemagnitude_s1",
+          "suffix": "cubepinch_sb_forcemagnitude_s1",
+          "result": "ok",
+          "seed": 1,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 10,
+          "exp_name": "TesolloCubePinch-20260623-155328-cubepinch_sb_forcemagnitude_s2",
+          "suffix": "cubepinch_sb_forcemagnitude_s2",
+          "result": "ok",
+          "seed": 2,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 11,
+          "exp_name": "TesolloCubePinch-20260623-160743-cubepinch_sb_forcemagnitude_s3",
+          "suffix": "cubepinch_sb_forcemagnitude_s3",
+          "result": "ok",
+          "seed": 3,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 12,
+          "exp_name": "TesolloCubePinch-20260623-162151-cubepinch_sb_propriodelta_s1",
+          "suffix": "cubepinch_sb_propriodelta_s1",
+          "result": "ok",
+          "seed": 1,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 13,
+          "exp_name": "TesolloCubePinch-20260623-163605-cubepinch_sb_propriodelta_s2",
+          "suffix": "cubepinch_sb_propriodelta_s2",
+          "result": "ok",
+          "seed": 2,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 14,
+          "exp_name": "TesolloCubePinch-20260623-165024-cubepinch_sb_propriodelta_s3",
+          "suffix": "cubepinch_sb_propriodelta_s3",
+          "result": "ok",
+          "seed": 3,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        }
+      ]
+    },
+    {
+      "queue": "downwards_sensor_sweep_120_cubesizeDR-20260626-215239",
+      "n_runs": 4,
+      "runs": [
+        {
+          "idx": 0,
+          "exp_name": "TesolloDownwardsRotateZ-20260626-215248-downwardsrotatez_sb_forcemagnitude_s0",
+          "suffix": "downwardsrotatez_sb_forcemagnitude_s0",
+          "result": "ok",
+          "seed": 0,
+          "n_checkpoints": 19,
+          "final_step": 1008599040
+        },
+        {
+          "idx": 1,
+          "exp_name": "TesolloDownwardsRotateZ-20260626-234400-downwardsrotatez_sb_baseline_s0",
+          "suffix": "downwardsrotatez_sb_baseline_s0",
+          "result": "ok",
+          "seed": 0,
+          "n_checkpoints": 19,
+          "final_step": 1008599040
+        },
+        {
+          "idx": 2,
+          "exp_name": "TesolloDownwardsRotateZ-20260627-013545-downwardsrotatez_sb_propriodelta_s0",
+          "suffix": "downwardsrotatez_sb_propriodelta_s0",
+          "result": "ok",
+          "seed": 0,
+          "n_checkpoints": 19,
+          "final_step": 1008599040
+        },
+        {
+          "idx": 3,
+          "exp_name": "TesolloDownwardsRotateZ-20260627-032809-downwardsrotatez_sb_propriotarget_s0",
+          "suffix": "downwardsrotatez_sb_propriotarget_s0",
+          "result": "ok",
+          "seed": 0,
+          "n_checkpoints": 19,
+          "final_step": 1008599040
+        }
+      ]
+    }
+  ]
+}

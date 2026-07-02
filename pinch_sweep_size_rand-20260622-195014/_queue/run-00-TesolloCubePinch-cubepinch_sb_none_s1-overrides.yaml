@@ -1,0 +1,6 @@
+domain_rand.cube_size:
+- 0.85
+- 1.15
+ema_alpha: 0.15
+nconmax: 409600
+sensor_bundle: none

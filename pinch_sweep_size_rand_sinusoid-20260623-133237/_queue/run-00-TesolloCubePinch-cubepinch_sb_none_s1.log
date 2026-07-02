@@ -1,0 +1,563 @@
+E0623 13:32:41.983990 1532381 cuda_executor.cc:1273] [0] Failed to allocate device memory: INTERNAL: [0] Failed to allocate 17.66GiB (18967216128 bytes) of device memory: : CUDA_ERROR_OUT_OF_MEMORY: out of memory
+E0623 13:32:41.984243 1532381 cuda_executor.cc:1273] [0] Failed to allocate device memory: INTERNAL: [0] Failed to allocate 15.90GiB (17070493696 bytes) of device memory: : CUDA_ERROR_OUT_OF_MEMORY: out of memory
+E0623 13:32:41.984480 1532381 cuda_executor.cc:1273] [0] Failed to allocate device memory: INTERNAL: [0] Failed to allocate 14.31GiB (15363443712 bytes) of device memory: : CUDA_ERROR_OUT_OF_MEMORY: out of memory
+E0623 13:32:41.984736 1532381 cuda_executor.cc:1273] [0] Failed to allocate device memory: INTERNAL: [0] Failed to allocate 12.88GiB (13827098624 bytes) of device memory: : CUDA_ERROR_OUT_OF_MEMORY: out of memory
+Warp 1.12.1 initialized:
+   CUDA Toolkit 12.9, Driver 12.5
+   Devices:
+     "cpu"      : "x86_64"
+     "cuda:0"   : "NVIDIA GeForce RTX 4090" (24 GiB, sm_89, mempool enabled)
+   Kernel cache:
+     /home/nstaykov/.cache/warp/1.12.1
+Warp DeprecationWarning: The symbol `warp.types.warp_type_to_np_dtype` will soon be removed from the public API. It can still be accessed from `warp._src.types.warp_type_to_np_dtype` but might be changed or removed without notice.
+/local/home/nstaykov/workspace/mujoco_playground/mujoco_playground/_src/manipulation/tesollo_hand/obs.py:161: UserWarning: obs_noise.scales has keys not in active obs spec: {'joint_vel', 'fingertip_forces', 'motor_targets', 'fingertip_force_dirs', 'joint_pos'}
+  warnings.warn(
+Environment Config:
+action_repeat: 1
+ctrl_dt: 0.05
+cube_pos_offset:
+- 0.0
+- 0.0
+cube_size_scale: 1.0
+domain_rand:
+  actuator_kp:
+  - 1.0
+  - 1.0
+  cube_mass:
+  - 1.0
+  - 1.0
+  cube_pos:
+  - 0.0
+  - 0.0
+  cube_size:
+  - 0.85
+  - 1.15
+ema_alpha: 0.15
+episode_length: 80
+force_target_period: 2.0
+force_target_range:
+- 2.0
+- 5.0
+force_target_sinusoid: true
+force_tolerance: 0.75
+ghost_cube: false
+impl: warp
+nconmax: 204800
+njmax: 1024
+obs_noise:
+  bias_scales:
+    fingertip_force_dirs: 0.0
+    fingertip_forces: 0.0
+    joint_pos: 0.0
+    joint_vel: 0.0
+    motor_targets: 0.0
+  level: 0.0
+  scales:
+    fingertip_force_dirs: 0.0
+    fingertip_forces: 0.0
+    joint_pos: 0.001
+    joint_vel: 0.01
+    motor_targets: 0.0
+pert_config:
+  angular_velocity_pert:
+  - 0.0
+  - 0.5
+  enable: false
+  linear_velocity_pert:
+  - 0.0
+  - 3.0
+  pert_duration_steps:
+  - 1
+  - 100
+  pert_wait_steps:
+  - 60
+  - 150
+pid_gains:
+  enable: false
+  finger_kp: 3.0
+  finger_kv: 0.0
+  kp_per_actuator: []
+  kv_per_actuator: []
+reward_config:
+  scales:
+    action_rate: -0.005
+    cube_force: 5.0
+    fingertip_pos_per_tip: 2.0
+    joint_vel: -0.01
+  success_reward: 10.0
+sensor_bundle: none
+sim_dt: 0.01
+success_hold_time: 0.5
+use_ctrl_delta: false
+weld_cube: true
+
+PPO Training Parameters:
+action_repeat: 1
+batch_size: 256
+discounting: 0.995
+entropy_cost: 0.01
+episode_length: 80
+learning_rate: 0.0001
+log_training_metrics: true
+max_grad_norm: 1.0
+network_factory:
+  policy_hidden_layer_sizes: &id001 !!python/tuple
+  - 256
+  - 128
+  - 64
+  policy_obs_key: state
+  value_hidden_layer_sizes: *id001
+  value_obs_key: privileged_state
+normalize_observations: true
+num_envs: 4096
+num_evals: 10
+num_minibatches: 64
+num_resets_per_eval: 1
+num_timesteps: 300000000
+num_updates_per_batch: 4
+reward_scaling: 1.0
+training_metrics_steps: 10000000
+unroll_length: 40
+
+CLI overrides: {
+  "env_name": "TesolloCubePinch",
+  "suffix": "cubepinch_sb_none_s1",
+  "use_wandb": true,
+  "log_video_to_wandb": true,
+  "domain_randomization": true,
+  "seed": 1,
+  "num_timesteps": 300000000,
+  "num_envs": 4096,
+  "log_training_metrics": true,
+  "training_metrics_steps": 10000000,
+  "env_overrides_file": "logs/_queue/pinch_sweep_size_rand_sinusoid-20260623-133237/run-00-TesolloCubePinch-cubepinch_sb_none_s1-overrides.yaml"
+}
+Experiment name: TesolloCubePinch-20260623-133246-cubepinch_sb_none_s1
+Logs are being stored in: /local/home/nstaykov/workspace/mujoco_playground/logs/TesolloCubePinch-20260623-133246-cubepinch_sb_none_s1
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from WANDB_API_KEY.
+wandb: Currently logged in as: nstaykov (nikolastaykov) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.26.1
+wandb: Run data is saved locally in /local/home/nstaykov/workspace/mujoco_playground/wandb/run-20260623_133246-ooi3noh5
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run TesolloCubePinch-20260623-133246-cubepinch_sb_none_s1
+wandb: ⭐️ View project at https://wandb.ai/nikolastaykov/mjxrl
+wandb: 🚀 View run at https://wandb.ai/nikolastaykov/mjxrl/runs/ooi3noh5
+No checkpoint path provided, not restoring from checkpoint
+Checkpoint path: /local/home/nstaykov/workspace/mujoco_playground/logs/TesolloCubePinch-20260623-133246-cubepinch_sb_none_s1/checkpoints
+/local/home/nstaykov/workspace/mujoco_playground/mujoco_playground/_src/manipulation/tesollo_hand/obs.py:161: UserWarning: obs_noise.scales has keys not in active obs spec: {'joint_vel', 'fingertip_forces', 'motor_targets', 'fingertip_force_dirs', 'joint_pos'}
+  warnings.warn(
+Module mujoco.mjx.warp.ffi 98d2031 load on device 'cuda:0' took 0.54 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.smooth 26bbc02 load on device 'cuda:0' took 6.64 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.collision_driver 88f7770 load on device 'cuda:0' took 0.81 ms  (cached)
+Module _nxn_broadphase__locals__kernel_c763f4cb c763f4c load on device 'cuda:0' took 0.36 ms  (cached)
+Module _primitive_narrowphase__locals__primitive_narrowphase_072e9f5e 072e9f5 load on device 'cuda:0' took 0.81 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.constraint c567367 load on device 'cuda:0' took 0.79 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.sensor 18a78e5 load on device 'cuda:0' took 0.54 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.forward 16fbac8 load on device 'cuda:0' took 0.51 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.passive 8bfe11c load on device 'cuda:0' took 0.41 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.forward 8f5355c load on device 'cuda:0' took 1.96 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.support dd3f924 load on device 'cuda:0' took 1.61 ms  (cached)
+Module _tile_cholesky_factorize_solve__locals__cholesky_factorize_solve_fb56ecff 06a1263 load on device 'cuda:0' took 25.36 ms  (cached)
+Module mujoco.mjx.third_party.mujoco_warp._src.solver b116efb load on device 'cuda:0' took 0.63 ms  (cached)
+Module solve_init_jaref__locals__kernel_92ac5104 92ac510 load on device 'cuda:0' took 0.47 ms  (cached)
+Module mul_m_dense__locals___mul_m_dense_4674517e 4674517 load on device 'cuda:0' took 0.75 ms  (cached)
+Module update_constraint_efc__locals__kernel_81015163 8101516 load on device 'cuda:0' took 1.09 ms  (cached)
+Module update_constraint_gauss_cost__locals__kernel_266b2051 266b205 load on device 'cuda:0' took 1.86 ms  (cached)
+Module update_gradient_JTDAJ_dense_tiled__locals__kernel_f57d3998 abf76dd load on device 'cuda:0' took 0.74 ms  (cached)
+Module update_gradient_cholesky__locals__kernel_84e35302 9d5b72e load on device 'cuda:0' took 27.97 ms  (cached)
+Module linesearch_iterative__locals__kernel_94acdc55 9c914fd load on device 'cuda:0' took 0.49 ms  (cached)
+Module update_constraint_efc__locals__kernel_25737258 2573725 load on device 'cuda:0' took 0.39 ms  (cached)
+Module _contact_sort__locals__contact_sort_44d31eb2 de954a2 load on device 'cuda:0' took 0.38 ms  (cached)
+0: reward=4.565
+
+  0%|          | 0/40 [00:00<?, ?it/s]
+  5%|▌         | 2/40 [00:00<00:02, 16.22it/s]
+ 12%|█▎        | 5/40 [00:00<00:01, 20.12it/s]
+ 20%|██        | 8/40 [00:00<00:01, 21.80it/s]
+ 28%|██▊       | 11/40 [00:00<00:01, 22.18it/s]
+ 35%|███▌      | 14/40 [00:00<00:01, 21.84it/s]
+ 42%|████▎     | 17/40 [00:00<00:01, 22.27it/s]
+ 50%|█████     | 20/40 [00:00<00:00, 23.57it/s]
+ 57%|█████▊    | 23/40 [00:01<00:00, 24.70it/s]
+ 65%|██████▌   | 26/40 [00:01<00:00, 25.19it/s]
+ 72%|███████▎  | 29/40 [00:01<00:00, 24.91it/s]
+ 80%|████████  | 32/40 [00:01<00:00, 24.18it/s]
+ 88%|████████▊ | 35/40 [00:01<00:00, 23.20it/s]
+ 95%|█████████▌| 38/40 [00:01<00:00, 23.18it/s]
+100%|██████████| 40/40 [00:01<00:00, 23.22it/s]
+wandb: WARNING `fps` argument does not affect the frame rate of the video when providing a file path or raw bytes.
+10485760: mean episode reward=8.996
+20971520: mean episode reward=10.449
+31457280: mean episode reward=11.286
+
+  0%|          | 0/40 [00:00<?, ?it/s]
+  5%|▌         | 2/40 [00:00<00:01, 19.04it/s]
+ 12%|█▎        | 5/40 [00:00<00:01, 23.93it/s]
+ 20%|██        | 8/40 [00:00<00:01, 25.02it/s]
+ 28%|██▊       | 11/40 [00:00<00:01, 26.09it/s]
+ 35%|███▌      | 14/40 [00:00<00:00, 26.42it/s]
+ 42%|████▎     | 17/40 [00:00<00:00, 26.33it/s]
+ 50%|█████     | 20/40 [00:00<00:00, 26.14it/s]
+ 57%|█████▊    | 23/40 [00:00<00:00, 24.72it/s]
+ 65%|██████▌   | 26/40 [00:01<00:00, 24.45it/s]
+ 72%|███████▎  | 29/40 [00:01<00:00, 24.54it/s]
+ 80%|████████  | 32/40 [00:01<00:00, 24.67it/s]
+ 88%|████████▊ | 35/40 [00:01<00:00, 24.08it/s]
+ 95%|█████████▌| 38/40 [00:01<00:00, 24.04it/s]
+100%|██████████| 40/40 [00:01<00:00, 24.59it/s]
+wandb: WARNING `fps` argument does not affect the frame rate of the video when providing a file path or raw bytes.
+33423360: reward=11.268
+41943040: mean episode reward=11.669
+52428800: mean episode reward=12.199
+62914560: mean episode reward=12.321
+
+  0%|          | 0/40 [00:00<?, ?it/s]
+  5%|▌         | 2/40 [00:00<00:02, 17.27it/s]
+ 12%|█▎        | 5/40 [00:00<00:01, 23.58it/s]
+ 20%|██        | 8/40 [00:00<00:01, 25.16it/s]
+ 28%|██▊       | 11/40 [00:00<00:01, 25.74it/s]
+ 35%|███▌      | 14/40 [00:00<00:01, 25.41it/s]
+ 42%|████▎     | 17/40 [00:00<00:00, 25.36it/s]
+ 50%|█████     | 20/40 [00:00<00:00, 24.81it/s]
+ 57%|█████▊    | 23/40 [00:00<00:00, 24.16it/s]
+ 65%|██████▌   | 26/40 [00:01<00:00, 23.69it/s]
+ 72%|███████▎  | 29/40 [00:01<00:00, 23.55it/s]
+ 80%|████████  | 32/40 [00:01<00:00, 23.18it/s]
+ 88%|████████▊ | 35/40 [00:01<00:00, 23.76it/s]
+ 95%|█████████▌| 38/40 [00:01<00:00, 24.66it/s]
+100%|██████████| 40/40 [00:01<00:00, 24.28it/s]
+wandb: WARNING `fps` argument does not affect the frame rate of the video when providing a file path or raw bytes.
+66846720: reward=11.991
+73400320: mean episode reward=12.385
+83886080: mean episode reward=12.477
+94371840: mean episode reward=12.591
+
+  0%|          | 0/40 [00:00<?, ?it/s]
+  5%|▌         | 2/40 [00:00<00:02, 16.82it/s]
+ 12%|█▎        | 5/40 [00:00<00:01, 21.43it/s]
+ 20%|██        | 8/40 [00:00<00:01, 21.92it/s]
+ 28%|██▊       | 11/40 [00:00<00:01, 23.70it/s]
+ 35%|███▌      | 14/40 [00:00<00:01, 24.24it/s]
+ 42%|████▎     | 17/40 [00:00<00:00, 24.08it/s]
+ 50%|█████     | 20/40 [00:00<00:00, 24.10it/s]
+ 57%|█████▊    | 23/40 [00:00<00:00, 24.32it/s]
+ 65%|██████▌   | 26/40 [00:01<00:00, 25.36it/s]
+ 72%|███████▎  | 29/40 [00:01<00:00, 26.04it/s]
+ 80%|████████  | 32/40 [00:01<00:00, 26.62it/s]
+ 88%|████████▊ | 35/40 [00:01<00:00, 26.41it/s]
+ 95%|█████████▌| 38/40 [00:01<00:00, 25.83it/s]
+100%|██████████| 40/40 [00:01<00:00, 24.73it/s]
+wandb: WARNING `fps` argument does not affect the frame rate of the video when providing a file path or raw bytes.
+100270080: reward=12.594
+104857600: mean episode reward=12.604
+115343360: mean episode reward=12.590
+125829120: mean episode reward=12.651
+
+  0%|          | 0/40 [00:00<?, ?it/s]
+  5%|▌         | 2/40 [00:00<00:02, 15.50it/s]
+ 12%|█▎        | 5/40 [00:00<00:01, 20.64it/s]
+ 20%|██        | 8/40 [00:00<00:01, 22.51it/s]
+ 28%|██▊       | 11/40 [00:00<00:01, 23.93it/s]
+ 35%|███▌      | 14/40 [00:00<00:01, 25.23it/s]
+ 42%|████▎     | 17/40 [00:00<00:00, 25.84it/s]
+ 50%|█████     | 20/40 [00:00<00:00, 26.52it/s]
+ 57%|█████▊    | 23/40 [00:00<00:00, 26.69it/s]
+ 65%|██████▌   | 26/40 [00:01<00:00, 26.55it/s]
+ 72%|███████▎  | 29/40 [00:01<00:00, 26.23it/s]
+ 80%|████████  | 32/40 [00:01<00:00, 26.50it/s]
+ 88%|████████▊ | 35/40 [00:01<00:00, 26.66it/s]
+ 95%|█████████▌| 38/40 [00:01<00:00, 26.62it/s]
+100%|██████████| 40/40 [00:01<00:00, 25.55it/s]
+wandb: WARNING `fps` argument does not affect the frame rate of the video when providing a file path or raw bytes.
+133693440: reward=13.003
+136314880: mean episode reward=13.139
+146800640: mean episode reward=13.726
+157286400: mean episode reward=13.861
+
+  0%|          | 0/40 [00:00<?, ?it/s]
+  5%|▌         | 2/40 [00:00<00:02, 15.79it/s]
+ 12%|█▎        | 5/40 [00:00<00:01, 18.65it/s]
+ 18%|█▊        | 7/40 [00:00<00:01, 19.07it/s]
+ 25%|██▌       | 10/40 [00:00<00:01, 20.37it/s]
+ 32%|███▎      | 13/40 [00:00<00:01, 22.24it/s]
+ 40%|████      | 16/40 [00:00<00:01, 22.52it/s]
+ 48%|████▊     | 19/40 [00:00<00:00, 22.56it/s]
+ 55%|█████▌    | 22/40 [00:01<00:00, 21.81it/s]
+ 62%|██████▎   | 25/40 [00:01<00:00, 21.96it/s]
+ 70%|███████   | 28/40 [00:01<00:00, 21.44it/s]
+ 78%|███████▊  | 31/40 [00:01<00:00, 21.23it/s]
+ 85%|████████▌ | 34/40 [00:01<00:00, 21.10it/s]
+ 92%|█████████▎| 37/40 [00:01<00:00, 21.01it/s]
+100%|██████████| 40/40 [00:01<00:00, 20.85it/s]
+100%|██████████| 40/40 [00:01<00:00, 21.08it/s]
+wandb: WARNING `fps` argument does not affect the frame rate of the video when providing a file path or raw bytes.
+167116800: reward=13.866
+167772160: mean episode reward=13.677
+178257920: mean episode reward=13.747
+188743680: mean episode reward=13.666
+199229440: mean episode reward=13.824
+
+  0%|          | 0/40 [00:00<?, ?it/s]
+  5%|▌         | 2/40 [00:00<00:02, 18.31it/s]
+ 12%|█▎        | 5/40 [00:00<00:01, 22.94it/s]
+ 20%|██        | 8/40 [00:00<00:01, 24.09it/s]
+ 28%|██▊       | 11/40 [00:00<00:01, 24.44it/s]
+ 35%|███▌      | 14/40 [00:00<00:01, 24.62it/s]
+ 42%|████▎     | 17/40 [00:00<00:00, 24.68it/s]
+ 50%|█████     | 20/40 [00:00<00:00, 24.32it/s]
+ 57%|█████▊    | 23/40 [00:00<00:00, 24.62it/s]
+ 65%|██████▌   | 26/40 [00:01<00:00, 25.28it/s]
+ 72%|███████▎  | 29/40 [00:01<00:00, 25.38it/s]
+ 80%|████████  | 32/40 [00:01<00:00, 25.53it/s]
+ 88%|████████▊ | 35/40 [00:01<00:00, 26.24it/s]
+ 95%|█████████▌| 38/40 [00:01<00:00, 26.22it/s]
+100%|██████████| 40/40 [00:01<00:00, 25.16it/s]
+wandb: WARNING `fps` argument does not affect the frame rate of the video when providing a file path or raw bytes.
+200540160: reward=13.857
+209715200: mean episode reward=13.832
+220200960: mean episode reward=13.695
+230686720: mean episode reward=13.910
+
+  0%|          | 0/40 [00:00<?, ?it/s]
+  5%|▌         | 2/40 [00:00<00:02, 14.82it/s]
+ 12%|█▎        | 5/40 [00:00<00:01, 18.00it/s]
+ 20%|██        | 8/40 [00:00<00:01, 19.01it/s]
+ 28%|██▊       | 11/40 [00:00<00:01, 19.71it/s]
+ 35%|███▌      | 14/40 [00:00<00:01, 20.15it/s]
+ 42%|████▎     | 17/40 [00:00<00:01, 20.76it/s]
+ 50%|█████     | 20/40 [00:00<00:00, 21.60it/s]
+ 57%|█████▊    | 23/40 [00:01<00:00, 21.97it/s]
+ 65%|██████▌   | 26/40 [00:01<00:00, 22.92it/s]
+ 72%|███████▎  | 29/40 [00:01<00:00, 24.03it/s]
+ 80%|████████  | 32/40 [00:01<00:00, 23.92it/s]
+ 88%|████████▊ | 35/40 [00:01<00:00, 23.21it/s]
+ 95%|█████████▌| 38/40 [00:01<00:00, 22.83it/s]
+100%|██████████| 40/40 [00:01<00:00, 21.75it/s]
+wandb: WARNING `fps` argument does not affect the frame rate of the video when providing a file path or raw bytes.
+233963520: reward=13.657
+241172480: mean episode reward=13.636
+251658240: mean episode reward=14.025
+262144000: mean episode reward=13.815
+
+  0%|          | 0/40 [00:00<?, ?it/s]
+  5%|▌         | 2/40 [00:00<00:02, 17.44it/s]
+ 12%|█▎        | 5/40 [00:00<00:01, 20.50it/s]
+ 20%|██        | 8/40 [00:00<00:01, 22.48it/s]
+ 28%|██▊       | 11/40 [00:00<00:01, 23.20it/s]
+ 35%|███▌      | 14/40 [00:00<00:01, 22.97it/s]
+ 42%|████▎     | 17/40 [00:00<00:01, 23.00it/s]
+ 50%|█████     | 20/40 [00:00<00:00, 23.12it/s]
+ 57%|█████▊    | 23/40 [00:01<00:00, 23.77it/s]
+ 65%|██████▌   | 26/40 [00:01<00:00, 24.22it/s]
+ 72%|███████▎  | 29/40 [00:01<00:00, 25.07it/s]
+ 80%|████████  | 32/40 [00:01<00:00, 25.08it/s]
+ 88%|████████▊ | 35/40 [00:01<00:00, 25.37it/s]
+ 95%|█████████▌| 38/40 [00:01<00:00, 24.96it/s]
+100%|██████████| 40/40 [00:01<00:00, 23.87it/s]
+wandb: WARNING `fps` argument does not affect the frame rate of the video when providing a file path or raw bytes.
+267386880: reward=13.668
+272629760: mean episode reward=13.788
+283115520: mean episode reward=13.747
+293601280: mean episode reward=13.426
+
+  0%|          | 0/40 [00:00<?, ?it/s]
+  5%|▌         | 2/40 [00:00<00:02, 17.93it/s]
+ 12%|█▎        | 5/40 [00:00<00:01, 21.52it/s]
+ 20%|██        | 8/40 [00:00<00:01, 22.55it/s]
+ 28%|██▊       | 11/40 [00:00<00:01, 24.96it/s]
+ 35%|███▌      | 14/40 [00:00<00:01, 25.92it/s]
+ 42%|████▎     | 17/40 [00:00<00:00, 26.89it/s]
+ 50%|█████     | 20/40 [00:00<00:00, 26.85it/s]
+ 57%|█████▊    | 23/40 [00:00<00:00, 26.80it/s]
+ 65%|██████▌   | 26/40 [00:01<00:00, 27.09it/s]
+ 72%|███████▎  | 29/40 [00:01<00:00, 26.98it/s]
+ 80%|████████  | 32/40 [00:01<00:00, 27.23it/s]
+ 88%|████████▊ | 35/40 [00:01<00:00, 27.75it/s]
+ 95%|█████████▌| 38/40 [00:01<00:00, 28.06it/s]
+100%|██████████| 40/40 [00:01<00:00, 26.63it/s]
+wandb: WARNING `fps` argument does not affect the frame rate of the video when providing a file path or raw bytes.
+300810240: reward=13.376
+Done training.
+Time to JIT compile: 16.023772038519382
+Time to train: 769.1258390396833
+Starting inference...
+FPS for rendering: 10.0
+
+  0%|          | 0/500 [00:00<?, ?it/s]
+  0%|          | 2/500 [00:00<00:33, 14.93it/s]
+  1%|          | 5/500 [00:00<00:24, 20.47it/s]
+  2%|▏         | 8/500 [00:00<00:21, 22.38it/s]
+  2%|▏         | 11/500 [00:00<00:21, 22.52it/s]
+  3%|▎         | 14/500 [00:00<00:21, 22.44it/s]
+  3%|▎         | 17/500 [00:00<00:21, 22.61it/s]
+  4%|▍         | 20/500 [00:00<00:19, 24.11it/s]
+  5%|▍         | 23/500 [00:00<00:18, 25.37it/s]
+  5%|▌         | 26/500 [00:01<00:18, 26.05it/s]
+  6%|▌         | 29/500 [00:01<00:18, 25.97it/s]
+  6%|▋         | 32/500 [00:01<00:18, 25.87it/s]
+  7%|▋         | 35/500 [00:01<00:17, 25.98it/s]
+  8%|▊         | 38/500 [00:01<00:17, 26.38it/s]
+  8%|▊         | 41/500 [00:01<00:17, 26.25it/s]
+  9%|▉         | 44/500 [00:01<00:17, 26.46it/s]
+  9%|▉         | 47/500 [00:01<00:17, 26.34it/s]
+ 10%|█         | 50/500 [00:02<00:17, 25.57it/s]
+ 11%|█         | 53/500 [00:02<00:17, 25.68it/s]
+ 11%|█         | 56/500 [00:02<00:17, 25.55it/s]
+ 12%|█▏        | 59/500 [00:02<00:17, 25.71it/s]
+ 12%|█▏        | 62/500 [00:02<00:16, 26.41it/s]
+ 13%|█▎        | 65/500 [00:02<00:16, 26.49it/s]
+ 14%|█▎        | 68/500 [00:02<00:16, 26.87it/s]
+ 14%|█▍        | 71/500 [00:02<00:15, 27.40it/s]
+ 15%|█▍        | 74/500 [00:02<00:15, 27.35it/s]
+ 15%|█▌        | 77/500 [00:03<00:15, 27.92it/s]
+ 16%|█▌        | 80/500 [00:03<00:15, 27.03it/s]
+ 17%|█▋        | 83/500 [00:03<00:15, 26.31it/s]
+ 17%|█▋        | 86/500 [00:03<00:16, 25.07it/s]
+ 18%|█▊        | 89/500 [00:03<00:16, 24.63it/s]
+ 18%|█▊        | 92/500 [00:03<00:16, 24.68it/s]
+ 19%|█▉        | 95/500 [00:03<00:15, 25.40it/s]
+ 20%|█▉        | 98/500 [00:03<00:15, 26.03it/s]
+ 20%|██        | 101/500 [00:03<00:15, 26.54it/s]
+ 21%|██        | 104/500 [00:04<00:14, 27.44it/s]
+ 21%|██▏       | 107/500 [00:04<00:14, 27.09it/s]
+ 22%|██▏       | 110/500 [00:04<00:14, 27.34it/s]
+ 23%|██▎       | 113/500 [00:04<00:14, 27.04it/s]
+ 23%|██▎       | 116/500 [00:04<00:14, 27.23it/s]
+ 24%|██▍       | 119/500 [00:04<00:14, 26.53it/s]
+ 24%|██▍       | 122/500 [00:04<00:14, 26.62it/s]
+ 25%|██▌       | 125/500 [00:04<00:14, 26.40it/s]
+ 26%|██▌       | 128/500 [00:04<00:14, 26.45it/s]
+ 26%|██▌       | 131/500 [00:05<00:14, 26.36it/s]
+ 27%|██▋       | 134/500 [00:05<00:14, 25.84it/s]
+ 27%|██▋       | 137/500 [00:05<00:13, 26.01it/s]
+ 28%|██▊       | 140/500 [00:05<00:13, 26.53it/s]
+ 29%|██▊       | 143/500 [00:05<00:13, 26.58it/s]
+ 29%|██▉       | 146/500 [00:05<00:13, 26.73it/s]
+ 30%|██▉       | 149/500 [00:05<00:13, 26.60it/s]
+ 30%|███       | 152/500 [00:05<00:13, 25.64it/s]
+ 31%|███       | 155/500 [00:06<00:14, 24.56it/s]
+ 32%|███▏      | 158/500 [00:06<00:13, 24.67it/s]
+ 32%|███▏      | 161/500 [00:06<00:13, 24.43it/s]
+ 33%|███▎      | 164/500 [00:06<00:13, 24.26it/s]
+ 33%|███▎      | 167/500 [00:06<00:13, 24.63it/s]
+ 34%|███▍      | 170/500 [00:06<00:13, 24.97it/s]
+ 35%|███▍      | 173/500 [00:06<00:12, 25.41it/s]
+ 35%|███▌      | 176/500 [00:06<00:12, 25.64it/s]
+ 36%|███▌      | 179/500 [00:06<00:12, 25.71it/s]
+ 36%|███▋      | 182/500 [00:07<00:12, 24.78it/s]
+ 37%|███▋      | 185/500 [00:07<00:13, 24.10it/s]
+ 38%|███▊      | 188/500 [00:07<00:13, 23.79it/s]
+ 38%|███▊      | 191/500 [00:07<00:12, 23.85it/s]
+ 39%|███▉      | 194/500 [00:07<00:12, 24.63it/s]
+ 39%|███▉      | 197/500 [00:07<00:12, 24.71it/s]
+ 40%|████      | 200/500 [00:07<00:12, 24.91it/s]
+ 41%|████      | 203/500 [00:07<00:11, 25.17it/s]
+ 41%|████      | 206/500 [00:08<00:12, 23.71it/s]
+ 42%|████▏     | 209/500 [00:08<00:12, 22.83it/s]
+ 42%|████▏     | 212/500 [00:08<00:12, 22.22it/s]
+ 43%|████▎     | 215/500 [00:08<00:12, 22.49it/s]
+ 44%|████▎     | 218/500 [00:08<00:11, 23.56it/s]
+ 44%|████▍     | 221/500 [00:08<00:11, 24.64it/s]
+ 45%|████▍     | 224/500 [00:08<00:11, 25.04it/s]
+ 45%|████▌     | 227/500 [00:08<00:10, 25.08it/s]
+ 46%|████▌     | 230/500 [00:09<00:11, 24.43it/s]
+ 47%|████▋     | 233/500 [00:09<00:11, 23.86it/s]
+ 47%|████▋     | 236/500 [00:09<00:11, 23.47it/s]
+ 48%|████▊     | 239/500 [00:09<00:10, 23.80it/s]
+ 48%|████▊     | 242/500 [00:09<00:10, 23.95it/s]
+ 49%|████▉     | 245/500 [00:09<00:10, 24.43it/s]
+ 50%|████▉     | 248/500 [00:09<00:10, 24.62it/s]
+ 50%|█████     | 251/500 [00:09<00:09, 25.08it/s]
+ 51%|█████     | 254/500 [00:10<00:09, 25.39it/s]
+ 51%|█████▏    | 257/500 [00:10<00:09, 25.44it/s]
+ 52%|█████▏    | 260/500 [00:10<00:09, 25.02it/s]
+ 53%|█████▎    | 263/500 [00:10<00:09, 25.20it/s]
+ 53%|█████▎    | 266/500 [00:10<00:09, 25.76it/s]
+ 54%|█████▍    | 269/500 [00:10<00:09, 25.37it/s]
+ 54%|█████▍    | 272/500 [00:10<00:09, 25.12it/s]
+ 55%|█████▌    | 275/500 [00:10<00:09, 24.48it/s]
+ 56%|█████▌    | 278/500 [00:11<00:09, 24.13it/s]
+ 56%|█████▌    | 281/500 [00:11<00:09, 23.47it/s]
+ 57%|█████▋    | 284/500 [00:11<00:09, 21.81it/s]
+ 57%|█████▋    | 287/500 [00:11<00:09, 22.14it/s]
+ 58%|█████▊    | 290/500 [00:11<00:09, 22.64it/s]
+ 59%|█████▊    | 293/500 [00:11<00:09, 22.68it/s]
+ 59%|█████▉    | 296/500 [00:11<00:08, 23.13it/s]
+ 60%|█████▉    | 299/500 [00:12<00:08, 22.47it/s]
+ 60%|██████    | 302/500 [00:12<00:08, 22.54it/s]
+ 61%|██████    | 305/500 [00:12<00:09, 21.61it/s]
+ 62%|██████▏   | 308/500 [00:12<00:08, 21.74it/s]
+ 62%|██████▏   | 311/500 [00:12<00:08, 21.66it/s]
+ 63%|██████▎   | 314/500 [00:12<00:09, 20.21it/s]
+ 63%|██████▎   | 317/500 [00:12<00:09, 19.08it/s]
+ 64%|██████▍   | 319/500 [00:13<00:09, 18.74it/s]
+ 64%|██████▍   | 321/500 [00:13<00:09, 18.39it/s]
+ 65%|██████▍   | 323/500 [00:13<00:09, 17.97it/s]
+ 65%|██████▌   | 325/500 [00:13<00:10, 17.49it/s]
+ 65%|██████▌   | 327/500 [00:13<00:09, 17.66it/s]
+ 66%|██████▌   | 329/500 [00:13<00:09, 17.82it/s]
+ 66%|██████▌   | 331/500 [00:13<00:10, 16.08it/s]
+ 67%|██████▋   | 333/500 [00:13<00:10, 15.78it/s]
+ 67%|██████▋   | 335/500 [00:14<00:10, 15.83it/s]
+ 67%|██████▋   | 337/500 [00:14<00:10, 16.14it/s]
+ 68%|██████▊   | 339/500 [00:14<00:09, 16.62it/s]
+ 68%|██████▊   | 341/500 [00:14<00:09, 16.49it/s]
+ 69%|██████▉   | 344/500 [00:14<00:08, 17.61it/s]
+ 69%|██████▉   | 346/500 [00:14<00:08, 17.75it/s]
+ 70%|██████▉   | 348/500 [00:14<00:08, 18.09it/s]
+ 70%|███████   | 350/500 [00:14<00:08, 18.30it/s]
+ 71%|███████   | 353/500 [00:14<00:07, 20.32it/s]
+ 71%|███████   | 356/500 [00:15<00:06, 21.99it/s]
+ 72%|███████▏  | 359/500 [00:15<00:05, 23.52it/s]
+ 72%|███████▏  | 362/500 [00:15<00:05, 24.78it/s]
+ 73%|███████▎  | 365/500 [00:15<00:05, 25.76it/s]
+ 74%|███████▎  | 368/500 [00:15<00:04, 26.64it/s]
+ 74%|███████▍  | 371/500 [00:15<00:04, 27.04it/s]
+ 75%|███████▍  | 374/500 [00:15<00:04, 27.04it/s]
+ 75%|███████▌  | 377/500 [00:15<00:04, 27.21it/s]
+ 76%|███████▌  | 380/500 [00:15<00:04, 27.13it/s]
+ 77%|███████▋  | 383/500 [00:16<00:04, 27.28it/s]
+ 77%|███████▋  | 386/500 [00:16<00:04, 27.65it/s]
+ 78%|███████▊  | 389/500 [00:16<00:04, 27.33it/s]
+ 78%|███████▊  | 392/500 [00:16<00:03, 27.28it/s]
+ 79%|███████▉  | 395/500 [00:16<00:03, 27.32it/s]
+ 80%|███████▉  | 398/500 [00:16<00:03, 27.33it/s]
+ 80%|████████  | 401/500 [00:16<00:03, 27.07it/s]
+ 81%|████████  | 404/500 [00:16<00:03, 26.68it/s]
+ 81%|████████▏ | 407/500 [00:16<00:03, 26.40it/s]
+ 82%|████████▏ | 410/500 [00:17<00:03, 26.46it/s]
+ 83%|████████▎ | 413/500 [00:17<00:03, 26.25it/s]
+ 83%|████████▎ | 416/500 [00:17<00:03, 26.91it/s]
+ 84%|████████▍ | 419/500 [00:17<00:02, 27.12it/s]
+ 84%|████████▍ | 422/500 [00:17<00:02, 26.67it/s]
+ 85%|████████▌ | 425/500 [00:17<00:02, 26.66it/s]
+ 86%|████████▌ | 428/500 [00:17<00:02, 26.91it/s]
+ 86%|████████▌ | 431/500 [00:17<00:02, 26.63it/s]
+ 87%|████████▋ | 434/500 [00:17<00:02, 26.53it/s]
+ 87%|████████▋ | 437/500 [00:18<00:02, 26.23it/s]
+ 88%|████████▊ | 440/500 [00:18<00:02, 26.24it/s]
+ 89%|████████▊ | 443/500 [00:18<00:02, 26.92it/s]
+ 89%|████████▉ | 446/500 [00:18<00:01, 27.27it/s]
+ 90%|████████▉ | 449/500 [00:18<00:01, 27.00it/s]
+ 90%|█████████ | 452/500 [00:18<00:01, 27.67it/s]
+ 91%|█████████ | 455/500 [00:18<00:01, 26.34it/s]
+ 92%|█████████▏| 458/500 [00:18<00:01, 26.30it/s]
+ 92%|█████████▏| 461/500 [00:18<00:01, 25.90it/s]
+ 93%|█████████▎| 464/500 [00:19<00:01, 26.29it/s]
+ 93%|█████████▎| 467/500 [00:19<00:01, 26.52it/s]
+ 94%|█████████▍| 470/500 [00:19<00:01, 26.13it/s]
+ 95%|█████████▍| 473/500 [00:19<00:01, 25.50it/s]
+ 95%|█████████▌| 476/500 [00:19<00:00, 25.51it/s]
+ 96%|█████████▌| 479/500 [00:19<00:00, 25.15it/s]
+ 96%|█████████▋| 482/500 [00:19<00:00, 25.23it/s]
+ 97%|█████████▋| 485/500 [00:19<00:00, 23.84it/s]
+ 98%|█████████▊| 488/500 [00:20<00:00, 24.59it/s]
+ 98%|█████████▊| 491/500 [00:20<00:00, 24.97it/s]
+ 99%|█████████▉| 494/500 [00:20<00:00, 25.23it/s]
+ 99%|█████████▉| 497/500 [00:20<00:00, 25.50it/s]
+100%|██████████| 500/500 [00:20<00:00, 25.67it/s]
+100%|██████████| 500/500 [00:20<00:00, 24.37it/s]
+Rollout video saved as 'rollout0.mp4'.
+[1;34mwandb[0m: 
+[1;34mwandb[0m: 🚀 View run [33mTesolloCubePinch-20260623-133246-cubepinch_sb_none_s1[0m at: [34mhttps://wandb.ai/nikolastaykov/mjxrl/runs/ooi3noh5[0m
+[1;34mwandb[0m: Find logs at: [1;35mwandb/run-20260623_133246-ooi3noh5/logs[0m

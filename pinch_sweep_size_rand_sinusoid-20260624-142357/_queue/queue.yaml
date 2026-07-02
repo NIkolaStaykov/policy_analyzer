@@ -1,0 +1,43 @@
+hypothesis:
+  question: under cube-size DR with a PHASE-RANDOMIZED SINUSOIDAL force target, does force sensing separate from blind proprioception? The sinusoid removes the set-and-hold feedforward shortcut (real-time force feedback now required), and cube-size DR is the unobserved latent that hides force from (q, q̇), so blind policies can no longer reconstruct it. See verify_sinusoid_blind probe + pinch-size-rand-force-gap.
+  axis: sensor_bundle
+  metric: success
+
+defaults:
+  flags:
+    log_training_metrics: true
+    training_metrics_steps: 20_000_000
+    num_timesteps: 500_000_000
+    use_wandb: true
+    log_video_to_wandb: true
+    domain_randomization: true
+    num_envs: 8192
+  env_overrides:
+    domain_rand.cube_size: [0.85, 1.15]
+    # Phase-randomized sinusoidal force target sweeping force_target_range=[2,5] N
+    # once per force_target_period seconds. Phase is sampled per-episode on reset,
+    # so the policy cannot memorize a fixed schedule -> must track via feedback.
+    force_target_sinusoid: true
+    force_target_period: 2.0
+    nconmax: 409600  # 50 * num_envs; default (200*8192) is ~17.66 GiB and OOMs
+    # ema_alpha optimum from pinch_ema_sweep (8192): reward 46.8 / succ 1692, beats 0.2
+    # (round-1 winner, 42.2) and 0.1 (45.9); 0.05 collapses, 0.02 diverges.
+    # It's an ENV override (env config field), NOT a CLI flag.
+    ema_alpha: 0.15
+
+sweep:
+  env_names:
+    - TesolloCubePinch
+  seeds:
+    - 6
+    - 7
+    - 8
+    - 4
+    - 5
+  params:
+    sensor_bundle:
+      values:
+        - baseline
+        - proprio.target
+        - force.magnitude
+        - proprio.delta
