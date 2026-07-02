@@ -32,12 +32,20 @@ Within any single queue every parameter is constant; only `sensor_bundle` and
 
 ## 2. Success rollouts — global view (policy comparison plot)
 
-Split by task into 3 datasets — **one row per evaluation rollout** (59 runs × 100
-rollouts = 5900 rows total):
+**One row per evaluation rollout** (100 rollouts per run):
 
 - `success_rollouts_pinch.csv` — 1200 rows (12 runs)
 - `success_rollouts_pinch_sinusoid.csv` — 3500 rows (35 runs, both sinusoid queues)
-- `success_rollouts_downwards_rotate.csv` — 1200 rows (12 runs)
+- `success_rollouts_downwards_rotate_20-120.csv` — 1200 rows (12 runs), goal
+  rotation uniform in **20–120°** (in-distribution band).
+- `success_rollouts_downwards_rotate_ood_120-150.csv` — 1200 rows (12 runs), goal
+  rotation uniform in **120–150°** (out-of-distribution — beyond the 0–120° training
+  range). Success collapses to ~0 across all policies/seeds (extrapolation failure).
+
+The two downwards files come from the same 12 policies, re-evaluated under different
+goal-angle bands (env `min/max_target_angle` overrides). Each downwards row carries
+`goal_angle_deg` (the rollout's actual target) plus `target_min_deg`/`target_max_deg`,
+so success can be binned by difficulty. The pinch files have those columns empty.
 
 Column `successful_steps` is the number of steps the env's success condition held
 in that rollout (Compare-tab-style metric, unified across all three tasks). Build a
@@ -51,8 +59,9 @@ the 100 eval rollouts, keeping training seeds as separate lines/samples.
 
 ### How it was produced
 - Final checkpoint of each run; 100 rollouts; `deterministic` policy (distribution
-  mean). Eval RNG stream shared across runs for comparability. No benchmark
-  overrides (each checkpoint's own env config).
+  mean). Eval RNG stream shared across runs for comparability. Each checkpoint's own
+  env config, except the two downwards files override the goal-angle band via
+  `min_target_angle` / `max_target_angle` (20–120° and 120–150°).
 - `successful_steps` = sum of the per-step `reward/success_per_step` channel,
   cross-checked against the cumulative `success_count` (they matched for every run).
 

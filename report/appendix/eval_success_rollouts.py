@@ -34,7 +34,8 @@ QUEUES = {
 FIELDS = [
     "task", "queue", "env_name", "exp_name", "sensor_bundle", "suffix", "seed",
     "eval_mode", "rollout_idx", "successful_steps", "episode_length",
-    "success_fraction", "result",
+    "success_fraction", "result", "env_code_commit",
+    "target_min_deg", "target_max_deg", "goal_angle_deg",
 ]
 
 
@@ -60,16 +61,32 @@ def main() -> int:
     ap.add_argument("--mode", choices=("det", "sto"), default="det")
     ap.add_argument("--exps", default="",
                     help="comma-separated exp_names to process (overrides sharding)")
+    ap.add_argument("--commit", default="3682863",
+                    help="env_code_commit label for these rows")
+    ap.add_argument("--min-target-angle-deg", type=float, default=None,
+                    help="override min goal angle (deg); downwards only")
+    ap.add_argument("--max-target-angle-deg", type=float, default=None,
+                    help="override max goal angle (deg); downwards only")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
     os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 
+    import math
     import numpy as np
     import mujoco_playground
     from policy_analyzer import collect
     print(f"[gpu{args.gpu}] mujoco_playground from: {mujoco_playground.__file__}", flush=True)
+
+    overrides = {}
+    if args.min_target_angle_deg is not None:
+        overrides["min_target_angle"] = math.radians(args.min_target_angle_deg)
+    if args.max_target_angle_deg is not None:
+        overrides["max_target_angle"] = math.radians(args.max_target_angle_deg)
+    if overrides:
+        print(f"[gpu{args.gpu}] target-angle band override: "
+              f"[{args.min_target_angle_deg}, {args.max_target_angle_deg}] deg", flush=True)
 
     all_runs = run_list()
     if args.exps:
@@ -93,7 +110,7 @@ def main() -> int:
         exp = r["exp_name"]
         log_dir = LOGS / exp
         try:
-            handles = collect.restore_policy(log_dir, config_overrides={})
+            handles = collect.restore_policy(log_dir, config_overrides=overrides)
             sensor_bundle = str(handles["env_cfg"].sensor_bundle)
             res = collect.run_eval_rollouts(
                 handles, n_rollouts=args.n_rollouts, deterministic=deterministic
@@ -102,6 +119,13 @@ def main() -> int:
             sps = ch["reward/success_per_step"]            # [N, T] 0/1
             succ_steps = sps.sum(axis=1).astype(int)        # [N]
             T = int(res["episode_length"])
+            # per-rollout target angle (deg); constant per episode
+            ga = ch["curriculum/goal_angle_per_step"][:, 0] if "curriculum/goal_angle_per_step" in ch else None
+            if ga is not None and overrides:
+                lo, hi = args.min_target_angle_deg, args.max_target_angle_deg
+                if (lo is not None and ga.min() < lo - 0.5) or (hi is not None and ga.max() > hi + 0.5):
+                    print(f"  [warn] {exp}: goal angles [{ga.min():.1f},{ga.max():.1f}] "
+                          f"outside requested band [{lo},{hi}]", flush=True)
             # cross-check against cumulative success_count final value
             if "success_count" in ch:
                 cc = ch["success_count"][:, -1].astype(int)
@@ -117,7 +141,10 @@ def main() -> int:
                     "eval_mode": args.mode, "rollout_idx": i,
                     "successful_steps": int(succ_steps[i]), "episode_length": T,
                     "success_fraction": round(float(succ_steps[i]) / T, 6),
-                    "result": r["result"],
+                    "result": r["result"], "env_code_commit": args.commit,
+                    "target_min_deg": args.min_target_angle_deg if overrides else "",
+                    "target_max_deg": args.max_target_angle_deg if overrides else "",
+                    "goal_angle_deg": round(float(ga[i]), 3) if ga is not None else "",
                 })
             f.flush()
             print(f"  [{j+1}/{len(runs)}] {exp}: mean_succ_steps="
