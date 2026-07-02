@@ -9,7 +9,7 @@ QUEUES = [
     "pinch_sweep_size_rand-20260622-195014",
     "pinch_sweep_size_rand_sinusoid-20260624-142357",
     "pinch_sweep_size_rand_sinusoid-20260623-133237",
-    "downwards_sensor_sweep_120_cubesizeDR-20260626-215239",
+    "downwards_sensor_sweep_120-20260625-124815",
 ]
 
 class _L(yaml.SafeLoader):

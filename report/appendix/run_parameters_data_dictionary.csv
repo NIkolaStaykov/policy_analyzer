@@ -12,7 +12,7 @@ run_parameters_network.csv,policy_obs_key,network,,Observation group fed to the 
 run_parameters_network.csv,value_obs_key,network,,Observation group fed to the value network (privileged_state = asymmetric critic input).
 run_parameters_network.csv,normalize_observations,network,bool,Whether running observation normalization is applied before the networks.
 run_parameters_domain_randomization.csv,domain_randomization,domain_rand,bool,Whether domain randomization was enabled for the run (CLI flag).
-run_parameters_domain_randomization.csv,cube_size_min,domain_rand,scale factor,"Lower bound of per-episode cube-size scaling. For TesolloDownwardsRotateZ the range is defined inside the env's cube-size-only domain_randomize (not printed in the env config); shown here as [0.85, 1.15] when the flag is on."
+run_parameters_domain_randomization.csv,cube_size_min,domain_rand,scale factor,"Lower bound of per-episode cube-size scaling (TesolloCubePinch). Empty for the current downwards queue, which is the no-DR control sweep (domain_randomization off). Note: for the cube-size-DR downwards variant the range [0.85, 1.15] is baked into the env's domain_randomize and only active when the flag is on."
 run_parameters_domain_randomization.csv,cube_size_max,domain_rand,scale factor,Upper bound of per-episode cube-size scaling. See cube_size_min note for the downwards env.
 run_parameters_domain_randomization.csv,cube_mass_dr_min,domain_rand,scale factor,"Lower bound of cube-mass randomization (TesolloCubePinch only). [1.0, 1.0] means mass is not randomized. Empty for the downwards env."
 run_parameters_domain_randomization.csv,cube_mass_dr_max,domain_rand,scale factor,Upper bound of cube-mass randomization (TesolloCubePinch only).

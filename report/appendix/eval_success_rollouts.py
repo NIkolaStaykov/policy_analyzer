@@ -28,7 +28,7 @@ QUEUES = {
     "pinch_sweep_size_rand-20260622-195014": "pinch",
     "pinch_sweep_size_rand_sinusoid-20260624-142357": "pinch_sinusoid",
     "pinch_sweep_size_rand_sinusoid-20260623-133237": "pinch_sinusoid",
-    "downwards_sensor_sweep_120_cubesizeDR-20260626-215239": "downwards_rotate",
+    "downwards_sensor_sweep_120-20260625-124815": "downwards_rotate",
 }
 
 FIELDS = [
