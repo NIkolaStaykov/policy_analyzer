@@ -1,0 +1,33 @@
+# DownwardsRotateZ — sensor-bundle sweep at max_target_angle = 120deg, NO curriculum.
+#
+# Curriculum is off: goals are sampled full-range in [-120, +120] deg from step 0.
+# Varies ONLY the observation sensor bundle; everything else is held at the
+# absolute + EMA0.2 control config we settled on. 4 bundles x 3 seeds = 12 runs,
+# 1B steps each, executed bundle-by-bundle in the requested order:
+#   force.magnitude -> baseline -> proprio.delta -> proprio.target  (seeds 0,1,2).
+#
+# One queue, one GPU; launch via the cockpit (sizes num_envs to the GPU).
+defaults:
+  flags:
+    use_wandb: true
+    log_video_to_wandb: true
+    log_training_metrics: true
+    training_metrics_steps: 20_000_000
+    num_timesteps: 1_000_000_000
+    full_reset: true
+    num_resets_per_eval: 0
+  env_overrides:
+    # 120 deg in radians (max_target_angle is stored in radians).
+    max_target_angle: 2.0943951023931953
+    action_mode: absolute
+    ema_alpha: 0.2
+    target_hold_time: 0.05
+    curriculum:
+      enable: false
+
+sweep:
+  env_names: [TesolloDownwardsRotateZ]
+  params:
+    sensor_bundle:
+      values: [force.magnitude, baseline, proprio.delta, proprio.target]
+  seeds: [0, 1, 2]

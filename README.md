@@ -14,6 +14,8 @@ Backed up from `mujoco_playground/logs` (which is gitignored in that repo).
 Each run's `checkpoints/config.json` and per-step `ppo_network_config.json` describe the network.
 Step directories are named by cumulative env steps; the largest is the final policy.
 
+The downwards queue is the no-DR control sweep (downwards_sensor_sweep_120), 4 bundles x 3 seeds.
+
 ## Queues
 
 ### `pinch_sweep_size_rand-20260622-195014`
@@ -84,13 +86,21 @@ Step directories are named by cumulative env steps; the largest is the final pol
 | 13 | cubepinch_sb_propriodelta_s2 | 2 | ok | 9 | 300810240 |
 | 14 | cubepinch_sb_propriodelta_s3 | 3 | ok | 9 | 300810240 |
 
-### `downwards_sensor_sweep_120_cubesizeDR-20260626-215239`
+### `downwards_sensor_sweep_120-20260625-124815`
 
-4 runs (4 ok).
+12 runs (12 ok).
 
 | idx | suffix | seed | result | #ckpts | final step |
 |----:|--------|-----:|--------|-------:|-----------:|
 | 0 | downwardsrotatez_sb_forcemagnitude_s0 | 0 | ok | 19 | 1008599040 |
-| 1 | downwardsrotatez_sb_baseline_s0 | 0 | ok | 19 | 1008599040 |
-| 2 | downwardsrotatez_sb_propriodelta_s0 | 0 | ok | 19 | 1008599040 |
-| 3 | downwardsrotatez_sb_propriotarget_s0 | 0 | ok | 19 | 1008599040 |
+| 1 | downwardsrotatez_sb_forcemagnitude_s1 | 1 | ok | 19 | 1008599040 |
+| 2 | downwardsrotatez_sb_forcemagnitude_s2 | 2 | ok | 19 | 1008599040 |
+| 3 | downwardsrotatez_sb_baseline_s0 | 0 | ok | 19 | 1008599040 |
+| 4 | downwardsrotatez_sb_baseline_s1 | 1 | ok | 19 | 1008599040 |
+| 5 | downwardsrotatez_sb_baseline_s2 | 2 | ok | 19 | 1008599040 |
+| 6 | downwardsrotatez_sb_propriodelta_s0 | 0 | ok | 19 | 1008599040 |
+| 7 | downwardsrotatez_sb_propriodelta_s1 | 1 | ok | 19 | 1008599040 |
+| 8 | downwardsrotatez_sb_propriodelta_s2 | 2 | ok | 19 | 1008599040 |
+| 9 | downwardsrotatez_sb_propriotarget_s0 | 0 | ok | 19 | 1008599040 |
+| 10 | downwardsrotatez_sb_propriotarget_s1 | 1 | ok | 19 | 1008599040 |
+| 11 | downwardsrotatez_sb_propriotarget_s2 | 2 | ok | 19 | 1008599040 |

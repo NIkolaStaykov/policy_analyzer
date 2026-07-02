@@ -442,12 +442,12 @@
       ]
     },
     {
-      "queue": "downwards_sensor_sweep_120_cubesizeDR-20260626-215239",
-      "n_runs": 4,
+      "queue": "downwards_sensor_sweep_120-20260625-124815",
+      "n_runs": 12,
       "runs": [
         {
           "idx": 0,
-          "exp_name": "TesolloDownwardsRotateZ-20260626-215248-downwardsrotatez_sb_forcemagnitude_s0",
+          "exp_name": "TesolloDownwardsRotateZ-20260625-124824-downwardsrotatez_sb_forcemagnitude_s0",
           "suffix": "downwardsrotatez_sb_forcemagnitude_s0",
           "result": "ok",
           "seed": 0,
@@ -456,7 +456,25 @@
         },
         {
           "idx": 1,
-          "exp_name": "TesolloDownwardsRotateZ-20260626-234400-downwardsrotatez_sb_baseline_s0",
+          "exp_name": "TesolloDownwardsRotateZ-20260625-143857-downwardsrotatez_sb_forcemagnitude_s1",
+          "suffix": "downwardsrotatez_sb_forcemagnitude_s1",
+          "result": "ok",
+          "seed": 1,
+          "n_checkpoints": 19,
+          "final_step": 1008599040
+        },
+        {
+          "idx": 2,
+          "exp_name": "TesolloDownwardsRotateZ-20260625-162937-downwardsrotatez_sb_forcemagnitude_s2",
+          "suffix": "downwardsrotatez_sb_forcemagnitude_s2",
+          "result": "ok",
+          "seed": 2,
+          "n_checkpoints": 19,
+          "final_step": 1008599040
+        },
+        {
+          "idx": 3,
+          "exp_name": "TesolloDownwardsRotateZ-20260625-182059-downwardsrotatez_sb_baseline_s0",
           "suffix": "downwardsrotatez_sb_baseline_s0",
           "result": "ok",
           "seed": 0,
@@ -464,8 +482,26 @@
           "final_step": 1008599040
         },
         {
-          "idx": 2,
-          "exp_name": "TesolloDownwardsRotateZ-20260627-013545-downwardsrotatez_sb_propriodelta_s0",
+          "idx": 4,
+          "exp_name": "TesolloDownwardsRotateZ-20260625-201219-downwardsrotatez_sb_baseline_s1",
+          "suffix": "downwardsrotatez_sb_baseline_s1",
+          "result": "ok",
+          "seed": 1,
+          "n_checkpoints": 19,
+          "final_step": 1008599040
+        },
+        {
+          "idx": 5,
+          "exp_name": "TesolloDownwardsRotateZ-20260625-220243-downwardsrotatez_sb_baseline_s2",
+          "suffix": "downwardsrotatez_sb_baseline_s2",
+          "result": "ok",
+          "seed": 2,
+          "n_checkpoints": 19,
+          "final_step": 1008599040
+        },
+        {
+          "idx": 6,
+          "exp_name": "TesolloDownwardsRotateZ-20260625-235407-downwardsrotatez_sb_propriodelta_s0",
           "suffix": "downwardsrotatez_sb_propriodelta_s0",
           "result": "ok",
           "seed": 0,
@@ -473,11 +509,47 @@
           "final_step": 1008599040
         },
         {
-          "idx": 3,
-          "exp_name": "TesolloDownwardsRotateZ-20260627-032809-downwardsrotatez_sb_propriotarget_s0",
+          "idx": 7,
+          "exp_name": "TesolloDownwardsRotateZ-20260626-014823-downwardsrotatez_sb_propriodelta_s1",
+          "suffix": "downwardsrotatez_sb_propriodelta_s1",
+          "result": "ok",
+          "seed": 1,
+          "n_checkpoints": 19,
+          "final_step": 1008599040
+        },
+        {
+          "idx": 8,
+          "exp_name": "TesolloDownwardsRotateZ-20260626-033945-downwardsrotatez_sb_propriodelta_s2",
+          "suffix": "downwardsrotatez_sb_propriodelta_s2",
+          "result": "ok",
+          "seed": 2,
+          "n_checkpoints": 19,
+          "final_step": 1008599040
+        },
+        {
+          "idx": 9,
+          "exp_name": "TesolloDownwardsRotateZ-20260626-053300-downwardsrotatez_sb_propriotarget_s0",
           "suffix": "downwardsrotatez_sb_propriotarget_s0",
           "result": "ok",
           "seed": 0,
+          "n_checkpoints": 19,
+          "final_step": 1008599040
+        },
+        {
+          "idx": 10,
+          "exp_name": "TesolloDownwardsRotateZ-20260626-072314-downwardsrotatez_sb_propriotarget_s1",
+          "suffix": "downwardsrotatez_sb_propriotarget_s1",
+          "result": "ok",
+          "seed": 1,
+          "n_checkpoints": 19,
+          "final_step": 1008599040
+        },
+        {
+          "idx": 11,
+          "exp_name": "TesolloDownwardsRotateZ-20260626-091328-downwardsrotatez_sb_propriotarget_s2",
+          "suffix": "downwardsrotatez_sb_propriotarget_s2",
+          "result": "ok",
+          "seed": 2,
           "n_checkpoints": 19,
           "final_step": 1008599040
         }

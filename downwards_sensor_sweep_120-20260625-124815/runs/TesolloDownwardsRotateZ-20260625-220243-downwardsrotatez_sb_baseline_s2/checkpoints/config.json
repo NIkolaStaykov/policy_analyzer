@@ -1,0 +1,67 @@
+{
+    "action_mode": "absolute",
+    "action_repeat": 1,
+    "action_scale": 0.5,
+    "constrain_wrist_translation": false,
+    "ctrl_dt": 0.05,
+    "curriculum": {
+        "band_width": 0.08726646259971647,
+        "enable": false,
+        "promote_after": 5,
+        "success_count_threshold": 70
+    },
+    "ema_alpha": 0.2,
+    "episode_length": 120,
+    "impl": "warp",
+    "kp_scale": 1.0,
+    "max_target_angle": 2.0943951023931953,
+    "nconmax": 1638400,
+    "njmax": 2200,
+    "obs_noise": {
+        "level": 1.0,
+        "scales": {
+            "goal_quat": 0.0,
+            "joint_pos": 0.0,
+            "joint_vel": 0.0,
+            "motor_targets": 0.0
+        }
+    },
+    "ori_tolerance_rad": 0.05235987755982988,
+    "pert_config": {
+        "angular_velocity_pert": [
+            0.0,
+            0.5
+        ],
+        "enable": false,
+        "linear_velocity_pert": [
+            0.0,
+            3.0
+        ],
+        "pert_duration_steps": [
+            1,
+            100
+        ],
+        "pert_wait_steps": [
+            60,
+            150
+        ]
+    },
+    "reward_config": {
+        "ori_reward_margin_rad": 0.5235987755982988,
+        "scales": {
+            "action_rate": -0.5,
+            "cube_on_floor": -0.5,
+            "cube_ori": 2.0,
+            "fingertip_pos": 1.5,
+            "joint_vel": -0.002,
+            "wrist_vel": -0.02
+        },
+        "success_reward": 2.0
+    },
+    "scene": {
+        "cube_mass": 0.108
+    },
+    "sensor_bundle": "baseline",
+    "sim_dt": 0.01,
+    "target_hold_time": 0.05
+}
