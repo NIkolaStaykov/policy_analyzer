@@ -1,20 +1,23 @@
 # Appendix / report data
 
-Raw data extracts for the four report queues, all keyed on `exp_name` (the
-training run = one sensor-bundle variant at one seed). Everything here is **raw,
-per-seed / per-rollout data** — no per-policy aggregation — so plots can be built
-downstream.
+Raw data extracts for the report queues, all keyed on `exp_name` (the training run =
+one sensor-bundle variant at one seed). Everything here is **raw, per-seed /
+per-rollout data** — no per-policy aggregation — so plots can be built downstream.
 
-Runs covered: 59 across 4 queues.
+Runs covered: 62 across 5 queues.
 
 | queue | task | env | runs |
 |-------|------|-----|-----:|
 | `pinch_sweep_size_rand-20260622-195014` | pinch | TesolloCubePinch | 12 |
+| `pinch_size_rand_propriodelta_static-20260703-091304` | pinch | TesolloCubePinch | 3 |
 | `pinch_sweep_size_rand_sinusoid-20260623-133237` | pinch_sinusoid | TesolloCubePinch | 15 |
 | `pinch_sweep_size_rand_sinusoid-20260624-142357` | pinch_sinusoid | TesolloCubePinch | 20 |
 | `downwards_sensor_sweep_120-20260625-124815` | downwards_rotate | TesolloDownwardsRotateZ | 12 |
 
-The downwards queue is the **no-DR control sweep** (4 bundles × 3 seeds, no cube-size
+The static `pinch` task pools two queues: the original 4-bundle sweep (none,
+baseline, proprio.target, force.magnitude × 3 seeds) plus a later proprio.delta-only
+queue (3 seeds), giving 5 bundles for the static set-and-hold force target. The
+downwards queue is the **no-DR control sweep** (4 bundles × 3 seeds, no cube-size
 domain randomization).
 
 ## 1. Run parameters (appendix table)
@@ -34,7 +37,7 @@ Within any single queue every parameter is constant; only `sensor_bundle` and
 
 **One row per evaluation rollout** (100 rollouts per run):
 
-- `success_rollouts_pinch.csv` — 1200 rows (12 runs)
+- `success_rollouts_pinch.csv` — 1500 rows (15 runs; 5 bundles incl. proprio.delta)
 - `success_rollouts_pinch_sinusoid.csv` — 3500 rows (35 runs, both sinusoid queues)
 - `success_rollouts_downwards_rotate.csv` — 1200 rows (12 runs), goal rotation
   uniform in **60–120°** (in-distribution).
@@ -82,7 +85,7 @@ with `result=failed` so it can be filtered.
 Full per-step trajectories for a few exemplary rollouts per policy/seed
 (num_seeds × num_exemplary_rollouts trajectories per policy, 3 exemplary each):
 
-- `detailed_rollouts_pinch.csv` — 2880 rows (12 runs × 3 rollouts × 80 steps)
+- `detailed_rollouts_pinch.csv` — 3600 rows (15 runs × 3 rollouts × 80 steps)
 - `detailed_rollouts_pinch_sinusoid.csv` — 8400 rows (35 runs × 3 × 80)
 - `detailed_rollouts_downwards_rotate.csv` — 4320 rows (12 runs × 3 × 120),
   in-distribution goal rotations (~114–115°).
