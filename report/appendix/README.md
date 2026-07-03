@@ -41,12 +41,12 @@ Within any single queue every parameter is constant; only `sensor_bundle` and
 - `success_rollouts_pinch.csv` — 1500 rows (15 runs; 5 bundles incl. proprio.delta)
 - `success_rollouts_pinch_sinusoid.csv` — 3500 rows (35 runs, both sinusoid queues)
 - `success_rollouts_downwards_rotate.csv` — 1200 rows (12 runs), goal rotation
-  uniform in **60–120°** (in-distribution).
+  uniform over the **full 0–120° training range**.
 
-The downwards success eval constrains the goal-angle band to 60–120° (env
-`min/max_target_angle` overrides). Each downwards row carries `goal_angle_deg` (the
-rollout's actual target) plus `target_min_deg`/`target_max_deg`, so success can be
-binned by difficulty. The pinch files have those columns empty. (The 120–150°
+The downwards success eval samples the full 0–120° training range (env
+`min/max_target_angle` set to 0 and 120). Each downwards row carries `goal_angle_deg`
+(the rollout's actual target) plus `target_min_deg`/`target_max_deg`, so success can
+be binned by difficulty. The pinch files have those columns empty. (The 120–150°
 out-of-distribution study is a **detailed** dataset, not a success dataset — see §3.)
 
 Column `successful_steps` is the number of steps the env's success condition held
@@ -62,8 +62,8 @@ the 100 eval rollouts, keeping training seeds as separate lines/samples.
 ### How it was produced
 - Final checkpoint of each run; 100 rollouts; `deterministic` policy (distribution
   mean). Eval RNG stream shared across runs for comparability. Each checkpoint's own
-  env config, except downwards overrides the goal-angle band to 60–120° via
-  `min_target_angle` / `max_target_angle`.
+  env config, downwards sampling the full 0–120° goal range (`min_target_angle` /
+  `max_target_angle` set to 0 and 120).
 - `successful_steps` = sum of the per-step `reward/success_per_step` channel,
   cross-checked against the cumulative `success_count` (they matched for every run).
 
