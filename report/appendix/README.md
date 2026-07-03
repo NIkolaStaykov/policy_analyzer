@@ -9,14 +9,15 @@ Runs covered: 62 across 5 queues.
 | queue | task | env | runs |
 |-------|------|-----|-----:|
 | `pinch_sweep_size_rand-20260622-195014` | pinch | TesolloCubePinch | 12 |
-| `pinch_size_rand_propriodelta_static-20260703-091304` | pinch | TesolloCubePinch | 3 |
+| `pinch_sweep_size_rand-20260622-222627` | pinch | TesolloCubePinch | 3 |
 | `pinch_sweep_size_rand_sinusoid-20260623-133237` | pinch_sinusoid | TesolloCubePinch | 15 |
 | `pinch_sweep_size_rand_sinusoid-20260624-142357` | pinch_sinusoid | TesolloCubePinch | 20 |
 | `downwards_sensor_sweep_120-20260625-124815` | downwards_rotate | TesolloDownwardsRotateZ | 12 |
 
-The static `pinch` task pools two queues: the original 4-bundle sweep (none,
-baseline, proprio.target, force.magnitude × 3 seeds) plus a later proprio.delta-only
-queue (3 seeds), giving 5 bundles for the static set-and-hold force target. The
+The static `pinch` task pools two queues from the same Jun-22 session: the 4-bundle
+sweep (none, baseline, proprio.target, force.magnitude × 3 seeds) plus a
+proprio.delta-only continuation (3 seeds), giving 5 bundles for the static
+set-and-hold force target. The
 downwards queue is the **no-DR control sweep** (4 bundles × 3 seeds, no cube-size
 domain randomization).
 

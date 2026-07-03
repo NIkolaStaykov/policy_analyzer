@@ -26,7 +26,7 @@ QUEUE_DIR = LOGS / "_queue"
 
 QUEUES = {
     "pinch_sweep_size_rand-20260622-195014": "pinch",
-    "pinch_size_rand_propriodelta_static-20260703-091304": "pinch",
+    "pinch_sweep_size_rand-20260622-222627": "pinch",
     "pinch_sweep_size_rand_sinusoid-20260624-142357": "pinch_sinusoid",
     "pinch_sweep_size_rand_sinusoid-20260623-133237": "pinch_sinusoid",
     "downwards_sensor_sweep_120-20260625-124815": "downwards_rotate",
