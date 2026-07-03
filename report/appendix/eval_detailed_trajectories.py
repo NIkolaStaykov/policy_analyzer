@@ -76,6 +76,10 @@ def main() -> int:
     ap.add_argument("--tag", required=True, help="output filename tag, e.g. head / oldfm")
     ap.add_argument("--exps", default="", help="comma-separated exp_names (default: all)")
     ap.add_argument("--commit", default="3682863", help="env_code_commit label for these rows")
+    ap.add_argument("--min-target-angle-deg", type=float, default=None,
+                    help="override min goal angle (deg); downwards only")
+    ap.add_argument("--max-target-angle-deg", type=float, default=None,
+                    help="override max goal angle (deg); downwards only")
     ap.add_argument("--out-dir", required=True)
     args = ap.parse_args()
 
@@ -86,6 +90,15 @@ def main() -> int:
     import mujoco_playground
     from policy_analyzer import collect
     print(f"[gpu{args.gpu}] mujoco_playground from: {mujoco_playground.__file__}", flush=True)
+
+    overrides = {}
+    if args.min_target_angle_deg is not None:
+        overrides["min_target_angle"] = math.radians(args.min_target_angle_deg)
+    if args.max_target_angle_deg is not None:
+        overrides["max_target_angle"] = math.radians(args.max_target_angle_deg)
+    if overrides:
+        print(f"[gpu{args.gpu}] target-angle band override: "
+              f"[{args.min_target_angle_deg}, {args.max_target_angle_deg}] deg", flush=True)
 
     runs = run_list()
     if args.exps:
@@ -113,7 +126,7 @@ def main() -> int:
         exp = r["exp_name"]
         task = r["task"]
         try:
-            handles = collect.restore_policy(LOGS / exp, config_overrides={})
+            handles = collect.restore_policy(LOGS / exp, config_overrides=overrides)
             sensor_bundle = str(handles["env_cfg"].sensor_bundle)
             res = collect.run_eval_rollouts(handles, n_rollouts=N_ROLLOUTS, deterministic=True)
             ch = res["channels"]

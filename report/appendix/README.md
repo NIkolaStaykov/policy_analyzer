@@ -36,16 +36,14 @@ Within any single queue every parameter is constant; only `sensor_bundle` and
 
 - `success_rollouts_pinch.csv` — 1200 rows (12 runs)
 - `success_rollouts_pinch_sinusoid.csv` — 3500 rows (35 runs, both sinusoid queues)
-- `success_rollouts_downwards_rotate_20-120.csv` — 1200 rows (12 runs), goal
-  rotation uniform in **20–120°** (in-distribution band).
-- `success_rollouts_downwards_rotate_ood_120-150.csv` — 1200 rows (12 runs), goal
-  rotation uniform in **120–150°** (out-of-distribution — beyond the 0–120° training
-  range). Success collapses to ~0 across all policies/seeds (extrapolation failure).
+- `success_rollouts_downwards_rotate.csv` — 1200 rows (12 runs), goal rotation
+  uniform in **60–120°** (in-distribution).
 
-The two downwards files come from the same 12 policies, re-evaluated under different
-goal-angle bands (env `min/max_target_angle` overrides). Each downwards row carries
-`goal_angle_deg` (the rollout's actual target) plus `target_min_deg`/`target_max_deg`,
-so success can be binned by difficulty. The pinch files have those columns empty.
+The downwards success eval constrains the goal-angle band to 60–120° (env
+`min/max_target_angle` overrides). Each downwards row carries `goal_angle_deg` (the
+rollout's actual target) plus `target_min_deg`/`target_max_deg`, so success can be
+binned by difficulty. The pinch files have those columns empty. (The 120–150°
+out-of-distribution study is a **detailed** dataset, not a success dataset — see §3.)
 
 Column `successful_steps` is the number of steps the env's success condition held
 in that rollout (Compare-tab-style metric, unified across all three tasks). Build a
@@ -60,8 +58,8 @@ the 100 eval rollouts, keeping training seeds as separate lines/samples.
 ### How it was produced
 - Final checkpoint of each run; 100 rollouts; `deterministic` policy (distribution
   mean). Eval RNG stream shared across runs for comparability. Each checkpoint's own
-  env config, except the two downwards files override the goal-angle band via
-  `min_target_angle` / `max_target_angle` (20–120° and 120–150°).
+  env config, except downwards overrides the goal-angle band to 60–120° via
+  `min_target_angle` / `max_target_angle`.
 - `successful_steps` = sum of the per-step `reward/success_per_step` channel,
   cross-checked against the cumulative `success_count` (they matched for every run).
 
@@ -86,20 +84,26 @@ Full per-step trajectories for a few exemplary rollouts per policy/seed
 
 - `detailed_rollouts_pinch.csv` — 2880 rows (12 runs × 3 rollouts × 80 steps)
 - `detailed_rollouts_pinch_sinusoid.csv` — 8400 rows (35 runs × 3 × 80)
-- `detailed_rollouts_downwards_rotate.csv` — 4320 rows (12 runs × 3 × 120)
+- `detailed_rollouts_downwards_rotate.csv` — 4320 rows (12 runs × 3 × 120),
+  in-distribution goal rotations (~114–115°).
+- `detailed_rollouts_downwards_rotate_ood_120-150.csv` — 4320 rows (12 runs × 3 ×
+  120), **out-of-distribution** goal rotations (~148.7°, beyond the 0–120° training
+  range). Same schema; policies fail to reach the target — final `ori_error_deg`
+  stays ~67–104° across bundles (force.magnitude gets closest).
 
 Contents per step:
 - pinch / pinch_sinusoid: `force_target`, `finger_force_sum` (= f_thumb + f_index),
   plus `effective_force`, `f_thumb`, `f_index`, `success_per_step`, `reward`.
-- downwards_rotate: `ori_error_rad` / `ori_error_deg`, every raw reward component
-  (`rew_*`), total `reward`, and `goal_angle_deg`.
+- downwards_rotate (both files): `ori_error_rad` / `ori_error_deg`, every raw reward
+  component (`rew_*`), total `reward`, and `goal_angle_deg`.
 
 Exemplary-rollout selection:
 - pinch tasks: fixed indices 0,1,2. Because the eval RNG stream is shared, a given
   index is the SAME initial condition (cube size, force target) across every policy
   and seed — so these trajectories are directly comparable across policies.
-- downwards: the 3 most challenging rollouts, goal rotation >= 90 deg (indices
-  82/13/74 → 115.0/114.7/114.4 deg; again shared across all policies and seeds).
+- downwards: the 3 most challenging rollouts (largest goal angle) within the eval
+  band — indices 82/13/74, at ~114.4–115.0° for the in-distribution file and
+  ~148.6–148.7° for the OOD (120–150°) file; shared across all policies and seeds.
 
 Files: `detailed_rollouts_data_dictionary.csv`, `eval_detailed_trajectories.py`
 (regenerator). Same env-code provenance handling as §2 (`env_code_commit` column;

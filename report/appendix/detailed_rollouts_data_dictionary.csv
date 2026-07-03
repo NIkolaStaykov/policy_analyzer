@@ -16,7 +16,7 @@ pinch/pinch_sinusoid,effective_force,N,"Contact-gated total grip force actually 
 pinch/pinch_sinusoid,f_thumb,N,"Thumb fingertip contact force."
 pinch/pinch_sinusoid,f_index,N,"Index fingertip contact force."
 pinch/pinch_sinusoid,success_per_step,,"1 if the success condition held this step (force within tolerance for the required hold time), else 0."
-downwards_rotate,goal_angle_deg,deg,"Target cube rotation magnitude for this rollout (constant per episode). All selected rollouts are >= 90 deg."
+downwards_rotate,goal_angle_deg,deg,"Target cube rotation magnitude for this rollout (constant per episode). Selected as the 3 largest-angle rollouts in the eval band: ~114-115 deg for detailed_rollouts_downwards_rotate.csv (in-distribution) and ~148.7 deg for detailed_rollouts_downwards_rotate_ood_120-150.csv (out-of-distribution, min/max_target_angle overridden to 120-150 deg)."
 downwards_rotate,ori_error_rad,rad,"Cube orientation error to the goal this step."
 downwards_rotate,ori_error_deg,deg,"Cube orientation error to the goal this step, in degrees (= ori_error_rad * 180/pi)."
 downwards_rotate,rew_action_rate,,"Raw action-rate reward component (pre scale weight)."
