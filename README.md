@@ -1,6 +1,6 @@
 # Policy checkpoints backup
 
-Trained PPO checkpoints from four experiment queues (mujoco_playground / Tesollo hand tasks).
+Trained PPO checkpoints from five experiment queues (mujoco_playground / Tesollo hand tasks).
 Backed up from `mujoco_playground/logs` (which is gitignored in that repo).
 
 ## Layout
@@ -14,7 +14,8 @@ Backed up from `mujoco_playground/logs` (which is gitignored in that repo).
 Each run's `checkpoints/config.json` and per-step `ppo_network_config.json` describe the network.
 Step directories are named by cumulative env steps; the largest is the final policy.
 
-The downwards queue is the no-DR control sweep (downwards_sensor_sweep_120), 4 bundles x 3 seeds.
+The static pinch task pools two Jun-22 queues (195014: 4 bundles x 3 seeds; 222627: proprio.delta x 3 seeds).
+The downwards queue is the no-DR control sweep (4 bundles x 3 seeds).
 
 ## Queues
 
@@ -37,9 +38,19 @@ The downwards queue is the no-DR control sweep (downwards_sensor_sweep_120), 4 b
 | 10 | cubepinch_sb_forcemagnitude_s2 | 2 | ok | 9 | 300810240 |
 | 11 | cubepinch_sb_forcemagnitude_s3 | 3 | ok | 9 | 300810240 |
 
+### `pinch_sweep_size_rand-20260622-222627`
+
+3 runs (3 ok).
+
+| idx | suffix | seed | result | #ckpts | final step |
+|----:|--------|-----:|--------|-------:|-----------:|
+| 12 | cubepinch_sb_propriodelta_s1 | 1 | ok | 9 | 300810240 |
+| 13 | cubepinch_sb_propriodelta_s2 | 2 | ok | 9 | 300810240 |
+| 14 | cubepinch_sb_propriodelta_s3 | 3 | ok | 9 | 300810240 |
+
 ### `pinch_sweep_size_rand_sinusoid-20260624-142357`
 
-20 runs (19 ok).
+20 runs (18 ok).
 
 | idx | suffix | seed | result | #ckpts | final step |
 |----:|--------|-----:|--------|-------:|-----------:|
@@ -61,19 +72,19 @@ The downwards queue is the no-DR control sweep (downwards_sensor_sweep_120), 4 b
 | 15 | cubepinch_sb_propriodelta_s6 | 6 | ok | 9 | 501350400 |
 | 16 | cubepinch_sb_propriodelta_s7 | 7 | ok | 9 | 501350400 |
 | 17 | cubepinch_sb_propriodelta_s8 | 8 | ok | 9 | 501350400 |
-| 18 | cubepinch_sb_propriodelta_s4 | 4 | ok | 9 | 501350400 |
+| 18 | cubepinch_sb_propriodelta_s4 | 4 | failed | 9 | 501350400 |
 | 19 | cubepinch_sb_propriodelta_s5 | 5 | ok | 9 | 501350400 |
 
 ### `pinch_sweep_size_rand_sinusoid-20260623-133237`
 
-15 runs (15 ok).
+15 runs (14 ok).
 
 | idx | suffix | seed | result | #ckpts | final step |
 |----:|--------|-----:|--------|-------:|-----------:|
 | 0 | cubepinch_sb_none_s1 | 1 | ok | 9 | 300810240 |
 | 1 | cubepinch_sb_none_s2 | 2 | ok | 9 | 300810240 |
 | 2 | cubepinch_sb_none_s3 | 3 | ok | 9 | 300810240 |
-| 3 | cubepinch_sb_baseline_s1 | 1 | ok | 9 | 300810240 |
+| 3 | cubepinch_sb_baseline_s1 | 1 | failed | 9 | 300810240 |
 | 4 | cubepinch_sb_baseline_s2 | 2 | ok | 9 | 300810240 |
 | 5 | cubepinch_sb_baseline_s3 | 3 | ok | 9 | 300810240 |
 | 6 | cubepinch_sb_propriotarget_s1 | 1 | ok | 9 | 300810240 |

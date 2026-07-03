@@ -1,0 +1,80 @@
+[
+  {
+    "idx": 12,
+    "env_name": "TesolloCubePinch",
+    "suffix": "cubepinch_sb_propriodelta_s1",
+    "returncode": 0,
+    "result": "ok",
+    "started_at": "2026-06-22T22:26:27.728674",
+    "ended_at": "2026-06-22T22:37:48.853829",
+    "exp_name": "TesolloCubePinch-20260622-222636-cubepinch_sb_propriodelta_s1",
+    "log": "logs/_queue/pinch_sweep_size_rand-20260622-222627/run-12-TesolloCubePinch-cubepinch_sb_propriodelta_s1.log",
+    "overrides_file": "logs/_queue/pinch_sweep_size_rand-20260622-222627/run-12-TesolloCubePinch-cubepinch_sb_propriodelta_s1-overrides.yaml",
+    "script": "learning/train_jax_ppo.py",
+    "flags": {
+      "log_training_metrics": true,
+      "training_metrics_steps": 10000000,
+      "num_timesteps": 300000000,
+      "use_wandb": true,
+      "log_video_to_wandb": true,
+      "domain_randomization": true,
+      "num_envs": 8192,
+      "env_name": "TesolloCubePinch",
+      "suffix": "cubepinch_sb_propriodelta_s1",
+      "seed": 1
+    },
+    "resumed_from": null
+  },
+  {
+    "idx": 13,
+    "env_name": "TesolloCubePinch",
+    "suffix": "cubepinch_sb_propriodelta_s2",
+    "returncode": 0,
+    "result": "ok",
+    "started_at": "2026-06-22T22:37:48.855171",
+    "ended_at": "2026-06-22T22:49:07.466357",
+    "exp_name": "TesolloCubePinch-20260622-223757-cubepinch_sb_propriodelta_s2",
+    "log": "logs/_queue/pinch_sweep_size_rand-20260622-222627/run-13-TesolloCubePinch-cubepinch_sb_propriodelta_s2.log",
+    "overrides_file": "logs/_queue/pinch_sweep_size_rand-20260622-222627/run-13-TesolloCubePinch-cubepinch_sb_propriodelta_s2-overrides.yaml",
+    "script": "learning/train_jax_ppo.py",
+    "flags": {
+      "log_training_metrics": true,
+      "training_metrics_steps": 10000000,
+      "num_timesteps": 300000000,
+      "use_wandb": true,
+      "log_video_to_wandb": true,
+      "domain_randomization": true,
+      "num_envs": 8192,
+      "env_name": "TesolloCubePinch",
+      "suffix": "cubepinch_sb_propriodelta_s2",
+      "seed": 2
+    },
+    "resumed_from": null
+  },
+  {
+    "idx": 14,
+    "env_name": "TesolloCubePinch",
+    "suffix": "cubepinch_sb_propriodelta_s3",
+    "returncode": 0,
+    "result": "ok",
+    "started_at": "2026-06-22T22:49:07.467312",
+    "ended_at": "2026-06-22T23:00:23.080488",
+    "exp_name": "TesolloCubePinch-20260622-224916-cubepinch_sb_propriodelta_s3",
+    "log": "logs/_queue/pinch_sweep_size_rand-20260622-222627/run-14-TesolloCubePinch-cubepinch_sb_propriodelta_s3.log",
+    "overrides_file": "logs/_queue/pinch_sweep_size_rand-20260622-222627/run-14-TesolloCubePinch-cubepinch_sb_propriodelta_s3-overrides.yaml",
+    "script": "learning/train_jax_ppo.py",
+    "flags": {
+      "log_training_metrics": true,
+      "training_metrics_steps": 10000000,
+      "num_timesteps": 300000000,
+      "use_wandb": true,
+      "log_video_to_wandb": true,
+      "domain_randomization": true,
+      "num_envs": 8192,
+      "env_name": "TesolloCubePinch",
+      "suffix": "cubepinch_sb_propriodelta_s3",
+      "seed": 3
+    },
+    "resumed_from": null
+  }
+]

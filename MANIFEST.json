@@ -115,6 +115,39 @@
       ]
     },
     {
+      "queue": "pinch_sweep_size_rand-20260622-222627",
+      "n_runs": 3,
+      "runs": [
+        {
+          "idx": 12,
+          "exp_name": "TesolloCubePinch-20260622-222636-cubepinch_sb_propriodelta_s1",
+          "suffix": "cubepinch_sb_propriodelta_s1",
+          "result": "ok",
+          "seed": 1,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 13,
+          "exp_name": "TesolloCubePinch-20260622-223757-cubepinch_sb_propriodelta_s2",
+          "suffix": "cubepinch_sb_propriodelta_s2",
+          "result": "ok",
+          "seed": 2,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        },
+        {
+          "idx": 14,
+          "exp_name": "TesolloCubePinch-20260622-224916-cubepinch_sb_propriodelta_s3",
+          "suffix": "cubepinch_sb_propriodelta_s3",
+          "result": "ok",
+          "seed": 3,
+          "n_checkpoints": 9,
+          "final_step": 300810240
+        }
+      ]
+    },
+    {
       "queue": "pinch_sweep_size_rand_sinusoid-20260624-142357",
       "n_runs": 20,
       "runs": [
@@ -284,7 +317,7 @@
           "idx": 18,
           "exp_name": "TesolloCubePinch-20260624-191904-cubepinch_sb_propriodelta_s4",
           "suffix": "cubepinch_sb_propriodelta_s4",
-          "result": "ok",
+          "result": "failed",
           "seed": 4,
           "n_checkpoints": 9,
           "final_step": 501350400
@@ -335,7 +368,7 @@
           "idx": 3,
           "exp_name": "TesolloCubePinch-20260623-141420-cubepinch_sb_baseline_s1",
           "suffix": "cubepinch_sb_baseline_s1",
-          "result": "ok",
+          "result": "failed",
           "seed": 1,
           "n_checkpoints": 9,
           "final_step": 300810240
