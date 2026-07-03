@@ -11,7 +11,7 @@ rollout_idx,,"Evaluation rollout index 0..99 (100 rollouts per run). Each index 
 successful_steps,steps,"Number of steps in the episode where the env success condition held (sum of the per-step reward/success_per_step channel; equals the final success_count). This is the raw statistic to build success-vs-threshold curves."
 episode_length,steps,"Total steps in the rollout (80 for pinch/pinch_sinusoid, 120 for downwards_rotate)."
 success_fraction,,"successful_steps / episode_length (convenience column)."
-result,,"Training queue outcome for the run: ok or failed. One force.magnitude run (queue ...142357, seed 7) is failed; retained for completeness."
+result,,"Training queue outcome for the run: ok or failed. Three sinusoid-queue runs are failed (force.magnitude s7 and proprio.delta s4 in queue ...142357; baseline s1 in queue ...133237); retained for completeness so they can be filtered."
 env_code_commit,,"mujoco_playground commit used to evaluate this run. 3682863 (current HEAD) for all runs whose training-time observation spec matches HEAD. 0ac79f5 for the 6 force.magnitude runs from queues 195014 and 133237, whose force observation (fingertip_forces=2, state=19) predates commit 0e297c3 that expanded it (fingertip_forces=4, state=21); evaluated against their training-time code via an isolated git worktree."
 target_min_deg,deg,"Lower bound of the goal-rotation band the policy was evaluated under (downwards_rotate only; empty for pinch tasks). The downwards success eval uses 60 deg."
 target_max_deg,deg,"Upper bound of the goal-rotation band (downwards_rotate only; 120 deg, the top of the 0-120 deg training range). The 120-150 deg out-of-distribution study is a detailed dataset, not part of this success file."

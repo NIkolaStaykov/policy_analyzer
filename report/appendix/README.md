@@ -78,8 +78,9 @@ isolated git worktree; all other runs use current HEAD (`3682863`). The
 not affect these rollouts; the 45 HEAD-evaluated runs loaded without dimension
 error, which confirms their `state` obs matches their checkpoints.
 
-The one `failed` training run (force.magnitude, queue `...142357`, seed 7) is kept
-with `result=failed` so it can be filtered.
+Three sinusoid-queue runs are marked `failed` and kept with `result=failed` so they
+can be filtered: force.magnitude s7 and proprio.delta s4 (queue `...142357`), and
+baseline s1 (queue `...133237`).
 
 ## 3. Detailed rollouts — single-trajectory view (per-timestep)
 
