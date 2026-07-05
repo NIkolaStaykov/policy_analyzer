@@ -140,3 +140,48 @@ HEAD. This affects training only — the critic is not used at eval, so it has n
 bearing on the rollout datasets in §2–§3.
 
 Source: `pinch.py::_obs_privileged`, `downwards_rotate_z.py::_obs_privileged`.
+=======
+## 4. Fingertip contact forces — grip-force distribution (per-finger, per-step)
+
+Per-fingertip cube-contact forces (raw Newtons) the trained policies actually
+experience, for studying the **distribution of grip forces** across the four
+sensor-bundle policies. One panel per policy → violin plots (see below).
+
+- `fingertip_forces_downwards_rotate.csv` — 3840 rows, 5 fingertips
+  (`f_tip1..f_tip5`) + `f_total`.
+- `fingertip_forces_pinch_sinusoid.csv` — 2560 rows, 2 fingers (`f_thumb`,
+  `f_index`) + `f_total`. Pinch has 4 force geoms (2 fingers × tip+pad); the
+  recessed pad geoms read ~0, so each finger column is the tip+pad sum.
+- `fingertip_forces_data_dictionary.csv` — column descriptions.
+- `plot_fingertip_force_violins.py` — regenerates the violin-plot grids.
+
+Unlike §2/§3 (all runs, all seeds), this dataset covers **one run per bundle = the
+best training seed** by mean `success_fraction` in `success_rollouts_*.csv`; the
+blind `none` bundle is excluded. Best seeds — downwards: baseline s1,
+proprio.target s0, proprio.delta s2, force.magnitude s0; pinch-sinusoid (queue
+`...142357`): baseline s8, proprio.target s5, proprio.delta s6, force.magnitude s8.
+
+### How it was produced
+- Final checkpoint of each best-seed run; **8 deterministic rollouts** (`rollout_seed`
+  0..7 = JAX PRNGKey seeds — an independent reset stream, same seed = same reset
+  across bundles, but NOT the shared eval RNG of §2/§3), full episode (120 steps
+  downwards / 80 pinch).
+- Forces are read straight from the env's `*_tip_cube_force` sensors in Newtons —
+  measured for *every* policy, including bundles whose obs excludes force (the
+  policy's own force obs is these divided by `_TIP_FORCE_SCALE = 10`).
+- `env_code_commit = 3682863` (HEAD) for all runs — pinch-sinusoid uses queue
+  `...142357`, whose force.magnitude obs spec matches HEAD (avoids the `0ac79f5`
+  provenance split of §2).
+
+### Regenerating the violin plots
+Each panel is a per-finger KDE (violin) of the contact force pooled over all
+rollouts and steps, with median (o), mean (◇), the p5–p95 range, and a %-in-contact
+label; one 2×2 grid per task (baseline / proprio.target / proprio.delta /
+force.magnitude). Needs only `numpy` + `matplotlib`:
+
+```bash
+python plot_fingertip_force_violins.py downwards \
+    fingertip_forces_downwards_rotate.csv  forces_by_policy_downwards.png
+python plot_fingertip_force_violins.py pinch \
+    fingertip_forces_pinch_sinusoid.csv    forces_by_policy_pinch_sinusoid.png
+```

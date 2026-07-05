@@ -1,0 +1,15 @@
+applies_to,column,unit,description
+all,task,,Task family: downwards_rotate or pinch_sinusoid.
+all,queue,,Experiment queue the run belongs to.
+all,env_name,,MuJoCo Playground environment.
+all,exp_name,,Unique training run (join key to run_parameters_*.csv and the success dataset). One run per bundle: the BEST training seed by mean success_fraction in success_rollouts_*.csv.
+all,sensor_bundle,,"Observation/sensor bundle (compared policy axis): baseline, proprio.target, proprio.delta, force.magnitude. The blind 'none' bundle is excluded."
+all,seed,,Training seed of this run (the best seed for its bundle).
+all,rollout_seed,,"JAX PRNGKey seed used for this evaluation rollout (0..7). NOTE: this is an independent reset stream, NOT the shared eval RNG index used by success_rollouts_*/detailed_rollouts_* — rollout_seed values are comparable ACROSS bundles here (same seed = same reset) but not to the other datasets."
+all,step,,"Timestep within the rollout (0-based; 0..119 downwards, 0..79 pinch_sinusoid)."
+all,time_s,s,Simulated time = step * ctrl_dt (ctrl_dt = 0.05 s).
+all,f_total,N,Total cube-hand contact force = sum of the per-finger contact-force magnitudes this step.
+all,env_code_commit,,"mujoco_playground commit used to roll out the policy. HEAD 3682863 for all runs here (pinch_sinusoid uses queue 142357, whose force.magnitude obs spec matches HEAD)."
+downwards_rotate,f_tip1..f_tip5,N,"Per-fingertip contact-force magnitude vs the cube (raw Newtons) for fingertips rl_dg_1..rl_dg_5, read from the *_tip_cube_force sensors (env obs divides these by _TIP_FORCE_SCALE=10)."
+pinch_sinusoid,f_thumb,N,Thumb contact-force magnitude = sum of its two geom sensors (rl_dg_1_tip + rl_dg_1_tip_2 cube_force). The tip_2 pad geom reads ~0 by design.
+pinch_sinusoid,f_index,N,Index contact-force magnitude = sum of its two geom sensors (rl_dg_2_tip + rl_dg_2_tip_2 cube_force).
