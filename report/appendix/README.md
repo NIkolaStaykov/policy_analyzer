@@ -113,3 +113,30 @@ Exemplary-rollout selection:
 Files: `detailed_rollouts_data_dictionary.csv`, `eval_detailed_trajectories.py`
 (regenerator). Same env-code provenance handling as §2 (`env_code_commit` column;
 the 6 old force.magnitude runs evaluated under `0ac79f5`).
+
+## 4. Critic privileged state
+
+- `critic_privileged_state.csv` — per-task breakdown of the `privileged_state`
+  observation the value network (critic) sees, one row per component.
+
+The policies are asymmetric actor-critic: the policy reads the noisy `state`
+obs (`policy_obs_key=state`), while the critic reads a ground-truth,
+noise-free `privileged_state` (`value_obs_key=privileged_state`). This file
+lists, per task, each component of that vector in concatenation order, its
+dimensionality, the source expression in the env code, and a description.
+Columns: `task`, `env_name`, `order`, `component`, `dims`, `source_expr`,
+`description`.
+
+Totals: **pinch / pinch_sinusoid = 43 dims** (identical structure — both are
+`TesolloCubePinch`; only the `force_target` component differs, static vs.
+sinusoidal), **downwards_rotate = 114 dims** (`TesolloDownwardsRotateZ`, full
+26-DoF hand). Both expose the DR'd cube-size / cube-pose latents the policy
+cannot observe, which is the point of the privileged critic.
+
+Env-code provenance (as in §2): the 6 old force.magnitude runs predate commit
+`0e297c3`, which grew `fingertip_forces` 2→4, so their `privileged_state` was
+41 dims (fingertip_forces = 2) rather than 43. The table above reflects current
+HEAD. This affects training only — the critic is not used at eval, so it has no
+bearing on the rollout datasets in §2–§3.
+
+Source: `pinch.py::_obs_privileged`, `downwards_rotate_z.py::_obs_privileged`.

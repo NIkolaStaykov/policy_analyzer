@@ -1,0 +1,29 @@
+task,env_name,order,component,dims,source_expr,description
+pinch,TesolloCubePinch,1,joint_positions,8,data.qpos[hand_qids],True hand joint angles (q) for the 8 active pinch joints.
+pinch,TesolloCubePinch,2,joint_velocities,8,data.qvel[hand_dqids],True hand joint velocities (qdot).
+pinch,TesolloCubePinch,3,fingertip_positions_global,6,get_fingertip_global_positions,World-frame positions of the 2 pinch fingertips (thumb + index) 3 coords each.
+pinch,TesolloCubePinch,4,motor_targets,8,info[motor_targets],Commanded actuator position targets.
+pinch,TesolloCubePinch,5,force_target,1,info[force_target],Commanded pinch force target (N); static per-episode for the pinch task.
+pinch,TesolloCubePinch,6,fingertip_forces,4,_obs_fingertip_forces,Per-tip contact force magnitudes over the 4 tip geoms.
+pinch,TesolloCubePinch,7,cube_size,1,mjx_model.geom_size[cube_geom_id 0],DR'd cube half-size latent exposed to the critic (policy cannot observe it).
+pinch,TesolloCubePinch,8,cube_position,3,get_cube_position,True cube world position.
+pinch,TesolloCubePinch,9,cube_orientation,4,get_cube_orientation,True cube world quaternion.
+pinch_sinusoid,TesolloCubePinch,1,joint_positions,8,data.qpos[hand_qids],True hand joint angles (q) for the 8 active pinch joints.
+pinch_sinusoid,TesolloCubePinch,2,joint_velocities,8,data.qvel[hand_dqids],True hand joint velocities (qdot).
+pinch_sinusoid,TesolloCubePinch,3,fingertip_positions_global,6,get_fingertip_global_positions,World-frame positions of the 2 pinch fingertips (thumb + index) 3 coords each.
+pinch_sinusoid,TesolloCubePinch,4,motor_targets,8,info[motor_targets],Commanded actuator position targets.
+pinch_sinusoid,TesolloCubePinch,5,force_target,1,info[force_target],Commanded pinch force target (N); time-varying sinusoid over force_target_range for the sinusoid task.
+pinch_sinusoid,TesolloCubePinch,6,fingertip_forces,4,_obs_fingertip_forces,Per-tip contact force magnitudes over the 4 tip geoms.
+pinch_sinusoid,TesolloCubePinch,7,cube_size,1,mjx_model.geom_size[cube_geom_id 0],DR'd cube half-size latent exposed to the critic (policy cannot observe it).
+pinch_sinusoid,TesolloCubePinch,8,cube_position,3,get_cube_position,True cube world position.
+pinch_sinusoid,TesolloCubePinch,9,cube_orientation,4,get_cube_orientation,True cube world quaternion.
+downwards_rotate,TesolloDownwardsRotateZ,1,joint_positions,26,data.qpos[hand_qids],True hand joint angles (q) for the full 26-DoF hand.
+downwards_rotate,TesolloDownwardsRotateZ,2,joint_velocities,26,data.qvel[hand_dqids],True hand joint velocities (qdot).
+downwards_rotate,TesolloDownwardsRotateZ,3,cube_position,3,get_cube_position,True cube world position.
+downwards_rotate,TesolloDownwardsRotateZ,4,cube_linvel,3,get_cube_linvel,Cube linear velocity.
+downwards_rotate,TesolloDownwardsRotateZ,5,cube_angvel,3,get_cube_angvel,Cube angular velocity.
+downwards_rotate,TesolloDownwardsRotateZ,6,fingertip_positions,15,get_fingertip_positions,Fingertip positions for the 5 fingertips 3 coords each.
+downwards_rotate,TesolloDownwardsRotateZ,7,palm_position,3,get_palm_position,Palm world position.
+downwards_rotate,TesolloDownwardsRotateZ,8,motor_targets,26,info[motor_targets],Commanded actuator position targets.
+downwards_rotate,TesolloDownwardsRotateZ,9,goal_quat,4,info[goal_quat],Goal orientation quaternion.
+downwards_rotate,TesolloDownwardsRotateZ,10,fingertip_forces,5,_obs_fingertip_forces,Per-tip contact force magnitudes over the 5 tip geoms.
