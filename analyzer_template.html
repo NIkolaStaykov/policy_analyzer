@@ -249,7 +249,21 @@
     padding: 2px 6px; line-height: 1;
   }
   #cmp-refresh:hover { color: var(--text); border-color: var(--muted); }
+  #queue-search-wrap {
+    padding: 6px 8px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  #queue-search {
+    width: 100%; box-sizing: border-box;
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    padding: 4px 7px; border-radius: 3px; font: inherit; font-size: 11px;
+  }
+  #queue-search::placeholder { color: var(--muted); }
   #queue-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .qsection {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--muted); padding: 4px 2px 2px; margin-top: 4px;
+  }
+  .qsection:first-child { margin-top: 0; }
   .qgroup { margin-bottom: 10px; }
   .qhead {
     display: flex; align-items: baseline; gap: 6px; cursor: pointer;
@@ -259,6 +273,12 @@
   .qhead .qname { font-weight: 600; word-break: break-all; }
   .qhead .qcount { color: var(--muted); font-size: 10px; flex-shrink: 0; }
   .qhead .qtwist { color: var(--muted); width: 10px; flex-shrink: 0; }
+  .qhead .qpin {
+    margin-left: auto; flex-shrink: 0; cursor: pointer; color: var(--muted);
+    font-size: 12px; line-height: 1;
+  }
+  .qhead .qpin:hover { color: var(--text); }
+  .qhead .qpin.on { color: var(--accent); }
   .qpolicies { padding: 4px 0 4px 6px; display: none; }
   .qgroup.open .qpolicies { display: block; }
 
@@ -293,6 +313,8 @@
     display: flex; align-items: center; gap: 6px;
     font-size: 10px; color: var(--muted); padding: 2px 0;
   }
+  .seedrow .seedcb { width: 12px; height: 12px; margin: 0; flex-shrink: 0; cursor: pointer; }
+  .seedrow .seedcb:disabled { cursor: default; }
   .seedrow .sdot { flex-shrink: 0; }
   .seedrow.ok .sdot { color: var(--green); }
   .seedrow.failed .sdot { color: var(--red); }
@@ -315,6 +337,7 @@
     padding: 4px 6px; border-radius: 3px; font: inherit; font-size: 11px;
   }
   .cmp-field input[type=number] { width: 70px; }
+  #cmp-smode { max-width: 230px; }
   .cmp-field.chk { flex-direction: row; align-items: center; gap: 5px; }
   #cmp-gen {
     background: #2563eb; color: #fff; border: none;
@@ -322,6 +345,14 @@
   }
   #cmp-gen:hover:not(:disabled) { background: #1d4ed8; }
   #cmp-gen:disabled { background: var(--border); color: var(--muted); cursor: default; }
+  #cmp-dl, #cmp-dl-data {
+    background: transparent; color: var(--text); border: 1px solid var(--border);
+    padding: 7px 14px; border-radius: 4px; cursor: pointer; font: inherit;
+  }
+  #cmp-dl:hover:not(:disabled), #cmp-dl-data:hover:not(:disabled) {
+    border-color: var(--muted); background: var(--panel);
+  }
+  #cmp-dl:disabled, #cmp-dl-data:disabled { color: var(--muted); cursor: default; }
   #cmp-status { flex-shrink: 0; padding: 6px 12px; font-size: 11px; color: var(--muted); min-height: 0; }
   #cmp-status.err { color: var(--red); }
   #cmp-chart { flex: 1; min-height: 0; margin: 0 8px 8px; }
@@ -412,6 +443,10 @@
       <span class="spacer"></span>
       <button id="cmp-refresh" onclick="loadQueues(true)">↻</button>
     </div>
+    <div id="queue-search-wrap">
+      <input id="queue-search" type="search" placeholder="Search queues…"
+             oninput="onQueueSearch(this.value)">
+    </div>
     <div id="queue-list"><div class="empty">Loading…</div></div>
   </div>
   <div id="cmp-main">
@@ -421,6 +456,12 @@
         <select id="cmp-mode">
           <option value="det">deterministic</option>
           <option value="sto">stochastic</option>
+        </select>
+      </div>
+      <div class="cmp-field">
+        <label>Benchmark</label>
+        <select id="cmp-benchmark" title="Environment-config preset to evaluate against">
+          <option value="default">Default (training config)</option>
         </select>
       </div>
       <div class="cmp-field">
@@ -436,6 +477,14 @@
         <label for="cmp-abs">abs</label>
       </div>
       <div class="cmp-field">
+        <label>Criterion</label>
+        <select id="cmp-smode" onchange="onSuccessModeChange()">
+          <option value="hold">error within thresh for hold steps</option>
+          <option value="average">avg rollout error below thresh</option>
+          <option value="average_above">mean success metric above thresh</option>
+        </select>
+      </div>
+      <div class="cmp-field">
         <label>Sweep min</label>
         <input type="number" id="cmp-smin" step="any" value="0">
       </div>
@@ -447,11 +496,17 @@
         <label>Points</label>
         <input type="number" id="cmp-npts" value="151" min="2" max="501">
       </div>
-      <div class="cmp-field">
+      <div class="cmp-field" id="cmp-hold-field">
         <label>Hold steps</label>
         <input type="number" id="cmp-hold" value="10" min="1">
       </div>
+      <div class="cmp-field" id="cmp-skip-field" style="display:none">
+        <label>Skip first (s)</label>
+        <input type="number" id="cmp-skip" step="any" value="0" min="0">
+      </div>
       <button id="cmp-gen" onclick="onGenerateCompare()">▶ Generate</button>
+      <button id="cmp-dl" onclick="downloadCompareChart()" disabled>⬇ PNG</button>
+      <button id="cmp-dl-data" onclick="downloadCompareData()" disabled>⬇ CSV</button>
     </div>
     <div id="cmp-status"></div>
     <div id="cmp-chart"></div>
@@ -1200,11 +1255,17 @@ function _renderAggregatePlots() {
 // ── compare tab ─────────────────────────────────────────────────────────────────
 let queuesLoaded = false;
 let queueData = [];                 // [{queue, policies:[...]}]
+let queueSearch = '';               // lowercased filter over queue / policy names
 const openQueues = new Set();       // queue names whose policy list is expanded
+// Pinned queue names, persisted across sessions; rendered in their own section.
+const pinnedQueues = new Set(JSON.parse(localStorage.getItem('cmpPinnedQueues') || '[]'));
 const openCards = new Set();        // policy keys whose seed list is expanded
+const deselectedSeeds = new Set();  // run_names excluded from their policy (default: all in)
 const selectedPolicies = new Map(); // key -> {label, sensor_bundle, env_name, run_names[]}
 let cmpEnv = null;                  // env_name shared by current selection
+let appliedConfigEnv = null;        // env whose defaults are currently in the form
 const cmpConfigCache = {};          // env_name -> /api/compare/config result
+const cmpBenchmarkCache = {};       // env_name -> /api/compare/benchmarks result
 let comparePollTimer = null;
 
 function resizeCompareChart() {
@@ -1227,31 +1288,72 @@ async function loadQueues(force) {
   renderQueues();
 }
 
+function onQueueSearch(v) {
+  queueSearch = v.trim().toLowerCase();
+  renderQueues();
+}
+
+function togglePinQueue(name) {
+  if (pinnedQueues.has(name)) pinnedQueues.delete(name); else pinnedQueues.add(name);
+  localStorage.setItem('cmpPinnedQueues', JSON.stringify([...pinnedQueues]));
+  renderQueues();
+}
+
+function queueMatchesSearch(q) {
+  if (!queueSearch) return true;
+  return q.queue.toLowerCase().includes(queueSearch)
+    || q.policies.some(p => (p.label || '').toLowerCase().includes(queueSearch));
+}
+
+function qsectionLabel(text) {
+  const d = document.createElement('div');
+  d.className = 'qsection';
+  d.textContent = text;
+  return d;
+}
+
+function queueGroup(q) {
+  const g = document.createElement('div');
+  g.className = 'qgroup' + (openQueues.has(q.queue) ? ' open' : '');
+  const head = document.createElement('div');
+  head.className = 'qhead';
+  head.onclick = () => {
+    const on = g.classList.toggle('open');
+    if (on) openQueues.add(q.queue); else openQueues.delete(q.queue);
+  };
+  const pinned = pinnedQueues.has(q.queue);
+  head.innerHTML =
+    `<span class="qtwist">▸</span>` +
+    `<span class="qname">${q.queue}</span>` +
+    `<span class="qcount">${q.policies.length}</span>` +
+    `<span class="qpin${pinned ? ' on' : ''}" title="${pinned ? 'Unpin' : 'Pin'}">${pinned ? '★' : '☆'}</span>`;
+  head.querySelector('.qpin').onclick = (e) => { e.stopPropagation(); togglePinQueue(q.queue); };
+  g.appendChild(head);
+
+  const pols = document.createElement('div');
+  pols.className = 'qpolicies';
+  q.policies.forEach(p => pols.appendChild(policyCard(q.queue, p)));
+  g.appendChild(pols);
+  return g;
+}
+
 function renderQueues() {
   const list = document.getElementById('queue-list');
   if (!queueData.length) { list.innerHTML = '<div class="empty">No queues found.</div>'; return; }
-  list.innerHTML = '';
-  queueData.forEach((q) => {
-    const g = document.createElement('div');
-    g.className = 'qgroup' + (openQueues.has(q.queue) ? ' open' : '');
-    const head = document.createElement('div');
-    head.className = 'qhead';
-    head.onclick = () => {
-      const on = g.classList.toggle('open');
-      if (on) openQueues.add(q.queue); else openQueues.delete(q.queue);
-    };
-    head.innerHTML =
-      `<span class="qtwist">▸</span>` +
-      `<span class="qname">${q.queue}</span>` +
-      `<span class="qcount">${q.policies.length}</span>`;
-    g.appendChild(head);
 
-    const pols = document.createElement('div');
-    pols.className = 'qpolicies';
-    q.policies.forEach(p => pols.appendChild(policyCard(q.queue, p)));
-    g.appendChild(pols);
-    list.appendChild(g);
-  });
+  const visible = queueData.filter(queueMatchesSearch);
+  list.innerHTML = '';
+  if (!visible.length) { list.innerHTML = '<div class="empty">No matching queues.</div>'; return; }
+
+  const pinned = visible.filter(q => pinnedQueues.has(q.queue));
+  const rest = visible.filter(q => !pinnedQueues.has(q.queue));
+
+  if (pinned.length) {
+    list.appendChild(qsectionLabel('Pinned'));
+    pinned.forEach(q => list.appendChild(queueGroup(q)));
+    if (rest.length) list.appendChild(qsectionLabel('Recent'));
+  }
+  rest.forEach(q => list.appendChild(queueGroup(q)));
 }
 
 function policyKey(queue, p) { return queue + '::' + p.id; }
@@ -1268,13 +1370,16 @@ function policyCard(queue, p) {
   if (selectedPolicies.has(key)) card.classList.add('selected');
   if (openCards.has(key)) card.classList.add('open');
 
+  const used = policyRunNames(p).length;
   const head = document.createElement('div');
   head.className = 'pcard-head';
   const bundle = p.sensor_bundle ? `<span class="pcard-bundle">${p.sensor_bundle}</span>` : '';
   head.innerHTML =
     `<input type="checkbox" ${selectedPolicies.has(key) ? 'checked' : ''} ${disabled ? 'disabled' : ''}>` +
     `<span class="pcard-label">${p.label} ${bundle}</span>` +
-    `<span class="pcard-badge">×${p.n_seeds}${p.runnable_seeds < p.n_seeds ? ' (' + p.runnable_seeds + ' ok)' : ''}</span>` +
+    `<span class="pcard-badge">×${p.n_seeds}` +
+      `${p.runnable_seeds < p.n_seeds ? ' (' + p.runnable_seeds + ' ok)' : ''}` +
+      `${used < runnable.length ? ' · ' + used + ' used' : ''}</span>` +
     `<span class="pcard-twist">▸</span>`;
   // Checkbox toggles selection; clicking elsewhere on the head expands the stack.
   const cb = head.querySelector('input');
@@ -1287,18 +1392,34 @@ function policyCard(queue, p) {
 
   const seeds = document.createElement('div');
   seeds.className = 'pcard-seeds';
-  seeds.innerHTML = p.seeds.map(s => {
+  p.seeds.forEach(s => {
     const cls = s.result === 'ok' ? 'ok' : 'failed';
+    const included = s.runnable && !deselectedSeeds.has(s.run_name);
     const open = s.runnable
       ? `<a class="sopen" onclick="openRunAnalysis('${s.run_name}')">open ▸</a>`
       : `<span class="sopen">${s.result}</span>`;
-    return `<div class="seedrow ${cls}">` +
+    const row = document.createElement('div');
+    row.className = `seedrow ${cls}`;
+    row.innerHTML =
+      `<input type="checkbox" class="seedcb" ${included ? 'checked' : ''} ${s.runnable ? '' : 'disabled'}>` +
       `<span class="sdot">●</span>` +
       `<span class="sname">seed ${s.seed == null ? '?' : s.seed} · ${s.run_name}</span>` +
-      open + `</div>`;
-  }).join('');
+      open;
+    if (s.runnable) {
+      const scb = row.querySelector('.seedcb');
+      scb.onclick = (e) => { e.stopPropagation(); toggleSeed(key, queue, p, s.run_name, scb.checked); };
+    }
+    seeds.appendChild(row);
+  });
   card.appendChild(seeds);
   return card;
+}
+
+// Runnable seeds a policy contributes — all by default, minus any deselected.
+function policyRunNames(p) {
+  return p.seeds
+    .filter(s => s.runnable && !deselectedSeeds.has(s.run_name))
+    .map(s => s.run_name);
 }
 
 function togglePolicySelect(key, queue, p, on) {
@@ -1314,12 +1435,25 @@ function togglePolicySelect(key, queue, p, on) {
       label: p.label,
       sensor_bundle: p.sensor_bundle,
       env_name: p.env_name,
-      run_names: p.seeds.filter(s => s.runnable).map(s => s.run_name),
+      run_names: policyRunNames(p),
     });
   }
   if (!selectedPolicies.size) cmpEnv = null;
   renderQueues();               // reflect selection / env reset across cards
   if (cmpEnv) loadCompareConfig(cmpEnv);
+  updateGenEnabled();
+}
+
+// Include/exclude one seed. If the policy is selected, keep its run_names in
+// sync; deselecting the last included seed deselects the whole policy.
+function toggleSeed(key, queue, p, run_name, on) {
+  if (on) deselectedSeeds.delete(run_name); else deselectedSeeds.add(run_name);
+  if (selectedPolicies.has(key)) {
+    const run_names = policyRunNames(p);
+    if (!run_names.length) { togglePolicySelect(key, queue, p, false); return; }
+    selectedPolicies.get(key).run_names = run_names;
+  }
+  renderQueues();
   updateGenEnabled();
 }
 
@@ -1337,12 +1471,35 @@ function updateGenEnabled() {
 }
 
 async function loadCompareConfig(env) {
+  // Applying the per-env defaults overwrites the form (criterion, sweep bounds,
+  // …). Do it only when the env actually changes, so selecting/deselecting
+  // seeds within one env keeps the user's current edits.
+  if (env === appliedConfigEnv) return;
   let cfg = cmpConfigCache[env];
   if (!cfg) {
     cfg = await fetch(`/api/compare/config?env=${encodeURIComponent(env)}`).then(r => r.json());
     cmpConfigCache[env] = cfg;
   }
   applyCompareConfig(cfg);
+  await loadBenchmarks(env);
+  appliedConfigEnv = env;
+}
+
+async function loadBenchmarks(env) {
+  let list = cmpBenchmarkCache[env];
+  if (!list) {
+    try {
+      list = await fetch(`/api/compare/benchmarks?env=${encodeURIComponent(env)}`).then(r => r.json());
+    } catch { list = []; }
+    if (!list || !list.length) list = [{name: 'default', label: 'Default (training config)'}];
+    cmpBenchmarkCache[env] = list;
+  }
+  const sel = document.getElementById('cmp-benchmark');
+  const prev = sel.value;
+  sel.innerHTML = list
+    .map(b => `<option value="${b.name}" title="${(b.description || '').replace(/"/g, '&quot;')}">${b.label}</option>`)
+    .join('');
+  sel.value = list.some(b => b.name === prev) ? prev : (list[0] ? list[0].name : 'default');
 }
 
 function applyCompareConfig(cfg) {
@@ -1362,9 +1519,20 @@ function applyCompareConfig(cfg) {
   document.getElementById('cmp-smax').value = cfg.sweep_max;
   document.getElementById('cmp-npts').value = cfg.n_points;
   document.getElementById('cmp-hold').value = cfg.hold_steps;
+  document.getElementById('cmp-skip').value = cfg.skip_first != null ? cfg.skip_first : 0;
+  document.getElementById('cmp-smode').value = cfg.success_mode || 'hold';
+  onSuccessModeChange();   // show the field that matches the criterion
   // Stash non-edited config (units/labels/ref) for the POST + plot.
   document.getElementById('cmp-controls').dataset.cfg = JSON.stringify(cfg);
   updateGenEnabled();
+}
+
+// Show only the parameter relevant to the chosen success criterion: hold-steps
+// for the sequential-hold mode, skip-first for either rollout-average mode.
+function onSuccessModeChange() {
+  const avg = document.getElementById('cmp-smode').value.startsWith('average');
+  document.getElementById('cmp-hold-field').style.display = avg ? 'none' : '';
+  document.getElementById('cmp-skip-field').style.display = avg ? '' : 'none';
 }
 
 async function openRunAnalysis(run_name) {
@@ -1392,13 +1560,16 @@ function buildCriterion() {
     sweep_min: parseFloat(document.getElementById('cmp-smin').value),
     sweep_max: parseFloat(document.getElementById('cmp-smax').value),
     n_points: parseInt(document.getElementById('cmp-npts').value) || 151,
+    success_mode: document.getElementById('cmp-smode').value,
     hold_steps: parseInt(document.getElementById('cmp-hold').value) || 10,
+    skip_first: parseFloat(document.getElementById('cmp-skip').value) || 0,
   };
 }
 
 async function onGenerateCompare() {
   if (!selectedPolicies.size) return;
   const mode = document.getElementById('cmp-mode').value;
+  const benchmark = document.getElementById('cmp-benchmark').value || 'default';
   const n_rollouts = parseInt(document.getElementById('cmp-nroll').value) || 50;
   const criterion = buildCriterion();
   if (!criterion.channel) return;
@@ -1410,7 +1581,7 @@ async function onGenerateCompare() {
   const resp = await fetch('/api/compare', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({mode, n_rollouts, criterion, policies}),
+    body: JSON.stringify({mode, benchmark, n_rollouts, criterion, policies}),
   });
   const {compare_id} = await resp.json();
   pollCompare(compare_id);
@@ -1446,13 +1617,74 @@ function pollCompare(cid) {
 
 const CMP_COLORS = COLORS;
 
-function renderCompareChart(result) {
+// The most recent renderCompareChart() result, kept so the download buttons can
+// re-export the underlying data without recomputing.
+let lastCompareResult = null;
+
+function cmpDownloadName() {
+  const ch = (document.getElementById('cmp-channel').value || 'success').replace(/[^\w.-]+/g, '_');
+  return `compare_${ch}`;
+}
+
+// Export the rendered Compare chart as a PNG. The modebar is hidden (plotCfg),
+// so this is the only way to download; filename follows the success channel.
+function downloadCompareChart() {
+  const gd = document.getElementById('cmp-chart');
+  if (!gd || !gd.data || !gd.data.length) return;
+  Plotly.downloadImage(gd, {
+    format: 'png', scale: 2,
+    width: gd.clientWidth, height: gd.clientHeight,
+    filename: cmpDownloadName(),
+  });
+}
+
+function csvCell(v) {
+  const s = String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+// Export the underlying curve data (x + each policy's mean/min/max) as CSV, for
+// replotting elsewhere. One row per swept threshold; min/max equal mean for
+// single-seed policies (no band).
+function downloadCompareData() {
+  const result = lastCompareResult;
+  if (!result || !result.x || !result.x.length) return;
   const x = result.x;
+  const header = [result.xlabel || 'threshold'];
+  const columns = [x];
+  result.policies.forEach(p => {
+    header.push(`${p.label} mean`, `${p.label} min`, `${p.label} max`);
+    columns.push(p.mean, p.min, p.max);
+  });
+  const rows = [header.map(csvCell).join(',')];
+  for (let r = 0; r < x.length; r++) {
+    rows.push(columns.map(col => csvCell(col[r])).join(','));
+  }
+  const blob = new Blob([rows.join('\n') + '\n'], {type: 'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${cmpDownloadName()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function renderCompareChart(result) {
+  lastCompareResult = result;
+  const x = result.x;
+  // X-axis spans the actual swept range so changing sweep_min/sweep_max and
+  // regenerating rescales the axis with the data, rather than leaving it pinned
+  // to a fixed per-channel default that just clips the lines.
+  const xmin = x.length ? x[0] : undefined;
+  const xmax = x.length ? x[x.length - 1] : undefined;
   const traces = [];
+  const bandForLine = {};   // line trace index -> its band trace index (if any)
   result.policies.forEach((p, i) => {
     const color = CMP_COLORS[i % CMP_COLORS.length];
     // min-max band (skip when a single seed has no spread)
+    let bandIdx = null;
     if (p.n_seeds > 1) {
+      bandIdx = traces.length;
       traces.push({
         x: [...x, ...x.slice().reverse()],
         y: [...p.max, ...p.min.slice().reverse()],
@@ -1460,6 +1692,7 @@ function renderCompareChart(result) {
         type: 'scatter', mode: 'none', showlegend: false, hoverinfo: 'skip',
       });
     }
+    if (bandIdx != null) bandForLine[traces.length] = bandIdx;
     traces.push({
       x, y: p.mean, type: 'scatter', mode: 'lines',
       name: `${p.label} (n=${p.n_seeds} seed${p.n_seeds === 1 ? '' : 's'})`,
@@ -1479,19 +1712,40 @@ function renderCompareChart(result) {
     });
   }
 
+  const skipNote = `skip first ${result.skip_first ?? 0}s (${result.skip_steps ?? 0} steps)`;
+  const critNote =
+    result.success_mode === 'average' ? `avg error below thr · ${skipNote}`
+    : result.success_mode === 'average_above' ? `mean metric above thr · ${skipNote}`
+    : `hold ${result.hold_steps} steps`;
   const layout = {
-    ...basePlotLayout('Success rate vs threshold'),
+    ...basePlotLayout(`Success rate vs threshold · ${critNote}`),
     showlegend: true,
     margin: {l: 50, r: 10, t: 28, b: 44},
     xaxis: {
       title: {text: result.xlabel, font: {size: 11}}, gridcolor: '#374151',
-      range: result.xlim != null ? [0, result.xlim] : undefined,
+      range: xmin != null ? [xmin, xmax] : undefined,
     },
     yaxis: {title: {text: result.ylabel, font: {size: 11}}, gridcolor: '#374151', range: [0, 100]},
     legend: {font: {size: 10}},
     shapes, annotations,
   };
   Plotly.react('cmp-chart', traces, layout, plotCfg);
+  document.getElementById('cmp-dl').disabled = false;        // PNG now downloadable
+  document.getElementById('cmp-dl-data').disabled = false;   // CSV now downloadable
+  // Toggling a policy's line in the legend should also hide/show its min-max
+  // band. Pairing is irregular (band only when n_seeds > 1), so look it up.
+  const cmpDiv = document.getElementById('cmp-chart');
+  cmpDiv._bandForLine = bandForLine;
+  if (!cmpDiv._bandToggleWired) {
+    cmpDiv._bandToggleWired = true;
+    cmpDiv.on('plotly_legendclick', (ev) => {
+      const band = cmpDiv._bandForLine[ev.curveNumber];
+      if (band == null) return true;
+      const lineVisible = cmpDiv.data[ev.curveNumber].visible !== 'legendonly';
+      Plotly.restyle(cmpDiv, {visible: lineVisible ? 'legendonly' : true}, [band]);
+      return true;  // keep Plotly's default toggle on the clicked line
+    });
+  }
   setTimeout(resizeCompareChart, 0);
 }
 

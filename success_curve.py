@@ -4,10 +4,16 @@ Port of experimentation/plot_success_vs_threshold.py onto the analyzer's own
 lightweight eval caches (see compare_collect.py / collect.run_eval_rollouts).
 
 For each policy we sweep a threshold on the x-axis and plot, on y, the fraction
-of rollouts that count as successful. A rollout succeeds when its chosen error
-channel stays below the threshold for `hold_steps` consecutive steps. Eval seeds
-(the N rollouts) are pooled into the rate; training-seed replicates are pooled
-into a mean line with a min-max band.
+of rollouts that count as successful. Two success criteria are supported
+(criterion["success_mode"]):
+  - "hold":    the error channel stays below the threshold for `hold_steps`
+               consecutive steps.
+  - "average": the rollout-averaged error (mean over the steps after the first
+               `skip_first` seconds — a settling period) is below the threshold.
+  - "average_above": same rollout mean, but success when it is *above* the
+               threshold (a success metric where higher is better).
+Eval seeds (the N rollouts) are pooled into the rate; training-seed replicates
+are pooled into a mean line with a min-max band.
 
 A per-env registry (SUCCESS_CONFIGS, mirroring the reference's CONFIGS) supplies
 sensible defaults; every field is overridable from the UI.
@@ -24,13 +30,14 @@ _DEG_PER_RAD = 180.0 / np.pi
 # (e.g. radians→degrees); sweep/ref/xlim are all expressed in DISPLAY units.
 SUCCESS_CONFIGS: dict[str, dict] = {
     "TesolloDownwardsRotateZ": {
-        "channel": "info.ori_error",
+        "channel": "reward/success_per_step",
         "abs": False,
-        "unit_scale": _DEG_PER_RAD,
-        "sweep_min": 0.0, "sweep_max": 18.0, "n_points": 151,
-        "xlabel": "orientation-error threshold (deg)", "xlim": 10.0,
+        "unit_scale": 1.0,
+        "sweep_min": 0.0, "sweep_max": 1.0, "n_points": 151,
+        "xlabel": "min success fraction", "xlim": 1.0,
+        "success_mode": "average_above",
         "hold_steps": 10,
-        "ref_value": 3.0, "ref_label": "train tol (3°)",
+        "ref_value": None, "ref_label": "",
     },
     "TesolloCubePinch": {
         "channel": "info.force_error",
@@ -44,20 +51,30 @@ SUCCESS_CONFIGS: dict[str, dict] = {
 }
 
 # Used when the env has no registry entry; the UI is expected to pick a channel.
+# success_mode selects how a single rollout is judged:
+#   "hold"    — error stays below the threshold for `hold_steps` consecutive steps
+#   "average" — the rollout-averaged error (over steps after `skip_first` seconds)
+#               is below the threshold
 DEFAULT_CONFIG: dict = {
     "channel": "",
     "abs": False,
     "unit_scale": 1.0,
     "sweep_min": 0.0, "sweep_max": 1.0, "n_points": 101,
     "xlabel": "threshold", "xlim": 1.0,
+    "success_mode": "hold",
     "hold_steps": 10,
+    "skip_first": 0.0,   # seconds at the start excluded from the average (settling)
     "ref_value": None, "ref_label": "",
 }
 
 
 def config_for_env(env_name: str, available_channels: list[str] | None = None) -> dict:
-    """Default criterion for an env, merged with a default channel guess."""
-    cfg = dict(SUCCESS_CONFIGS.get(env_name, DEFAULT_CONFIG))
+    """Default criterion for an env, merged with a default channel guess.
+
+    Layered over DEFAULT_CONFIG so every key (incl. success_mode / skip_first) is
+    always present even for envs whose registry entry predates them.
+    """
+    cfg = {**DEFAULT_CONFIG, **SUCCESS_CONFIGS.get(env_name, {})}
     if available_channels:
         cfg["available_channels"] = list(available_channels)
         if cfg["channel"] not in available_channels:
@@ -81,14 +98,39 @@ def max_consecutive_below(arr: np.ndarray, thresh: float) -> np.ndarray:
     return best
 
 
-def _seed_curve(arr: np.ndarray, sweep_raw: np.ndarray, hold_steps: int, use_abs: bool) -> np.ndarray:
-    """Success-rate curve (%) over the sweep for one seed run's [N, T] channel."""
+def _seed_curve_hold(arr: np.ndarray, sweep_raw: np.ndarray, hold_steps: int, use_abs: bool) -> np.ndarray:
+    """Hold-mode success-rate curve (%): error below thr for hold_steps in a row.
+
+    arr is one seed run's [N, T] channel.
+    """
     if use_abs:
         arr = np.abs(arr)
     n = arr.shape[0]
     rates = np.empty(sweep_raw.shape[0], dtype=float)
     for i, thr in enumerate(sweep_raw):
         rates[i] = np.count_nonzero(max_consecutive_below(arr, thr) >= hold_steps) / n
+    return rates * 100.0
+
+
+def _seed_curve_average(
+    arr: np.ndarray, sweep_raw: np.ndarray, use_abs: bool, skip_steps: int, above: bool = False
+) -> np.ndarray:
+    """Average-mode success-rate curve (%) on the rollout-averaged channel.
+
+    The per-rollout statistic is the mean of the (optionally abs) channel over
+    the steps after the first `skip_steps` (a settling period). A rollout
+    succeeds when that mean is below the threshold (error metric, `above=False`)
+    or above it (success metric, `above=True`).
+    """
+    if use_abs:
+        arr = np.abs(arr)
+    # Keep at least the final step if skip would consume the whole rollout.
+    skip = max(0, min(int(skip_steps), arr.shape[1] - 1)) if arr.shape[1] else 0
+    means = arr[:, skip:].mean(axis=1)          # [N]
+    n = arr.shape[0]
+    # success rate at each threshold = fraction of rollouts on the success side
+    cmp = (means[None, :] >= sweep_raw[:, None]) if above else (means[None, :] < sweep_raw[:, None])
+    rates = cmp.sum(axis=1) / n
     return rates * 100.0
 
 
@@ -104,7 +146,9 @@ def compute_curves(policies: list[dict], criterion: dict) -> dict:
     channel = criterion["channel"]
     use_abs = bool(criterion.get("abs", False))
     unit_scale = float(criterion.get("unit_scale", 1.0)) or 1.0
+    success_mode = criterion.get("success_mode", "hold")
     hold_steps = int(criterion.get("hold_steps", 10))
+    skip_first = float(criterion.get("skip_first", 0.0))  # seconds
     x = np.linspace(
         float(criterion["sweep_min"]),
         float(criterion["sweep_max"]),
@@ -112,6 +156,7 @@ def compute_curves(policies: list[dict], criterion: dict) -> dict:
     )
     sweep_raw = x / unit_scale  # display units → raw channel units for comparison
 
+    skip_steps_used = 0  # for display: skip_first converted via each seed's dt
     out_policies = []
     for pol in policies:
         curves = []
@@ -122,7 +167,14 @@ def compute_curves(policies: list[dict], criterion: dict) -> dict:
                 continue
             arr = np.asarray(ch, dtype=float)
             n_rollouts = max(n_rollouts, arr.shape[0])
-            curves.append(_seed_curve(arr, sweep_raw, hold_steps, use_abs))
+            if success_mode in ("average", "average_above"):
+                dt = seed.get("dt")
+                skip_steps = int(round(skip_first / dt)) if (dt and skip_first > 0) else 0
+                skip_steps_used = skip_steps
+                above = success_mode == "average_above"
+                curves.append(_seed_curve_average(arr, sweep_raw, use_abs, skip_steps, above))
+            else:
+                curves.append(_seed_curve_hold(arr, sweep_raw, hold_steps, use_abs))
         if not curves:
             continue
         stack = np.vstack(curves)  # [n_seeds, n_points]
@@ -146,7 +198,10 @@ def compute_curves(policies: list[dict], criterion: dict) -> dict:
         "ylabel": "success rate (%)",
         "xlim": criterion.get("xlim"),
         "channel": channel,
+        "success_mode": success_mode,
         "hold_steps": hold_steps,
+        "skip_first": skip_first,
+        "skip_steps": skip_steps_used,
         "ref": ref,
         "policies": out_policies,
     }
