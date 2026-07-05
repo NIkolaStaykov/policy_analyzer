@@ -140,8 +140,8 @@ HEAD. This affects training only — the critic is not used at eval, so it has n
 bearing on the rollout datasets in §2–§3.
 
 Source: `pinch.py::_obs_privileged`, `downwards_rotate_z.py::_obs_privileged`.
-=======
-## 4. Fingertip contact forces — grip-force distribution (per-finger, per-step)
+
+## 5. Fingertip contact forces — grip-force distribution (per-finger, per-step)
 
 Per-fingertip cube-contact forces (raw Newtons) the trained policies actually
 experience, for studying the **distribution of grip forces** across the four
