@@ -365,6 +365,9 @@ def run_batched_rollout(
                 "dt": float(eval_env.dt),
                 "deterministic": bool(deterministic),
                 "seed": int(seed),
+                # restore_policy loads the env without a randomization_fn, so
+                # rollouts run on the nominal model even for DR-trained runs.
+                "dr": "nominal",
             },
             "traj_qpos": sl["traj_qpos"],
             "traj_qvel": sl["traj_qvel"],

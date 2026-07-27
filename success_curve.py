@@ -134,6 +134,125 @@ def _seed_curve_average(
     return rates * 100.0
 
 
+# Display transforms per grid-axis name (grid_collect axes are in raw units).
+_GRID_AXIS_DISPLAY = {
+    "target_angle": (_DEG_PER_RAD, "target angle (deg)"),
+    "force_target": (1.0, "target force (N)"),
+    "force_phase": (1.0, "force phase (rad)"),
+    "cube_size": (1.0, "cube size (scale)"),
+    "cube_pos": (1.0, "cube pos offset (m)"),
+    "cube_mass": (1.0, "cube mass (scale)"),
+    "actuator_kp": (1.0, "actuator kp (scale)"),
+}
+
+
+def compute_grid_curves(policies: list[dict], criterion: dict) -> dict:
+    """Success rate vs the primary grid axis, at a single threshold.
+
+    policies: like compute_curves, but each seed is a grid_collect cache:
+        channels {name -> [n_cells, N, T]}, axes (list of {name, kind, values}),
+        cell_values [n_cells, n_axes], dt.
+    The primary axis is the first one (grid_collect orders episode axes first);
+    cells that share a primary-axis value (secondary axes) are averaged. The
+    threshold is criterion.ref_value when set, else the sweep-range midpoint —
+    plotted rate = fraction of rollouts succeeding at that single threshold.
+
+    Returns the same Plotly-ready shape as compute_curves (x is the axis value,
+    not a threshold), plus "title" and "threshold".
+    """
+    channel = criterion["channel"]
+    use_abs = bool(criterion.get("abs", False))
+    unit_scale = float(criterion.get("unit_scale", 1.0)) or 1.0
+    success_mode = criterion.get("success_mode", "hold")
+    hold_steps = int(criterion.get("hold_steps", 10))
+    skip_first = float(criterion.get("skip_first", 0.0))  # seconds
+
+    if criterion.get("ref_value") is not None:
+        thr_display = float(criterion["ref_value"])
+    else:
+        thr_display = 0.5 * (
+            float(criterion["sweep_min"]) + float(criterion["sweep_max"])
+        )
+    sweep_raw = np.array([thr_display / unit_scale])
+
+    # Primary axis from the first available seed; all seeds of a policy group
+    # come from the same queue config, so their grids agree.
+    first_seed = next(
+        (s for pol in policies for s in pol["seeds"] if s.get("axes")), None
+    )
+    if first_seed is None:
+        return {"x": [], "policies": [], "xlabel": "", "ylabel": "success rate (%)"}
+    axes = first_seed["axes"]
+    ax0 = axes[0]
+    ax0_vals = np.asarray(ax0["values"], dtype=float)
+    xscale, xlabel = _GRID_AXIS_DISPLAY.get(ax0["name"], (1.0, ax0["name"]))
+
+    skip_steps_used = 0
+    out_policies = []
+    for pol in policies:
+        curves = []
+        n_rollouts = 0
+        for seed in pol["seeds"]:
+            ch = seed["channels"].get(channel)
+            if ch is None or seed.get("cell_values") is None:
+                continue
+            arr = np.asarray(ch, dtype=float)          # [n_cells, N, T]
+            cell_primary = np.asarray(seed["cell_values"], dtype=float)[:, 0]
+            if arr.shape[0] != cell_primary.shape[0]:
+                continue
+            n_rollouts = max(n_rollouts, arr.shape[1])
+            if success_mode in ("average", "average_above"):
+                dt = seed.get("dt")
+                skip_steps = int(round(skip_first / dt)) if (dt and skip_first > 0) else 0
+                skip_steps_used = skip_steps
+                above = success_mode == "average_above"
+                rates = np.array([
+                    _seed_curve_average(arr[c], sweep_raw, use_abs, skip_steps, above)[0]
+                    for c in range(arr.shape[0])
+                ])
+            else:
+                rates = np.array([
+                    _seed_curve_hold(arr[c], sweep_raw, hold_steps, use_abs)[0]
+                    for c in range(arr.shape[0])
+                ])
+            # Marginalize secondary axes: mean over cells at each primary value.
+            curve = np.array([
+                rates[np.isclose(cell_primary, v)].mean() for v in ax0_vals
+            ])
+            curves.append(curve)
+        if not curves:
+            continue
+        stack = np.vstack(curves)  # [n_seeds, n_primary_values]
+        out_policies.append({
+            "label": pol["label"],
+            "sensor_bundle": pol.get("sensor_bundle", ""),
+            "n_seeds": stack.shape[0],
+            "n_rollouts": n_rollouts,
+            "mean": stack.mean(axis=0).tolist(),
+            "min": stack.min(axis=0).tolist(),
+            "max": stack.max(axis=0).tolist(),
+        })
+
+    title = f"Success rate vs {ax0['name']} · thr {thr_display:g}"
+    if len(axes) > 1:
+        title += " · avg over " + ", ".join(a["name"] for a in axes[1:])
+
+    return {
+        "x": (ax0_vals * xscale).tolist(),
+        "xlabel": xlabel,
+        "ylabel": "success rate (%)",
+        "channel": channel,
+        "success_mode": success_mode,
+        "hold_steps": hold_steps,
+        "skip_first": skip_first,
+        "skip_steps": skip_steps_used,
+        "threshold": thr_display,
+        "title": title,
+        "ref": None,
+        "policies": out_policies,
+    }
+
+
 def compute_curves(policies: list[dict], criterion: dict) -> dict:
     """Compute mean ± min/max success curves for each policy.
 

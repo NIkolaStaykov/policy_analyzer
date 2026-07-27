@@ -84,6 +84,22 @@ def g(d, *keys, default=""):
     return d
 
 
+def _force_freq(env, default=""):
+    """Sinusoid frequency in Hz, comparable across the schema rename.
+
+    Runs from 2026-07-27 onwards store force_target_frequency (Hz) directly.
+    Older runs stored force_target_period (seconds/cycle); convert so a single
+    column spans the whole corpus.
+    """
+    f = g(env, "force_target_frequency", default=None)
+    if f not in (None, ""):
+        return f
+    p = g(env, "force_target_period", default=None)
+    if p not in (None, "") and float(p) != 0.0:
+        return 1.0 / float(p)
+    return default
+
+
 def rng(d, *keys):
     v = g(d, *keys, default=None)
     if isinstance(v, (list, tuple)) and len(v) == 2:
@@ -135,7 +151,9 @@ dr_cols = ID_COLS + [
     "obs_noise_scale_joint_pos", "obs_noise_scale_joint_vel",
     "obs_noise_scales_json",
     "perturbation_enable",
-    "force_target_sinusoid", "force_target_period",
+    "force_target_sinusoid", "force_target_frequency",
+    "force_target_amplitude_scale",
+    "force_target_phase_min", "force_target_phase_max",
     "force_target_range_min", "force_target_range_max",
 ]
 dr_rows = []
@@ -152,6 +170,7 @@ for row in rows:
     cm_min, cm_max = rng(env, "domain_rand", "cube_mass")
     cp_min, cp_max = rng(env, "domain_rand", "cube_pos")
     ft_min, ft_max = rng(env, "force_target_range")
+    fp_min, fp_max = rng(env, "force_target_phase")
     scales = g(env, "obs_noise", "scales", default={})
     d.update(
         domain_randomization=dr_on,
@@ -164,7 +183,9 @@ for row in rows:
         obs_noise_scales_json=json.dumps(scales, sort_keys=True) if scales else "",
         perturbation_enable=g(env, "pert_config", "enable"),
         force_target_sinusoid=g(env, "force_target_sinusoid"),
-        force_target_period=g(env, "force_target_period"),
+        force_target_frequency=_force_freq(env),
+        force_target_amplitude_scale=g(env, "force_target_amplitude_scale", default=1.0),
+        force_target_phase_min=fp_min, force_target_phase_max=fp_max,
         force_target_range_min=ft_min, force_target_range_max=ft_max,
     )
     dr_rows.append(d)

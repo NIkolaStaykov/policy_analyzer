@@ -24,7 +24,10 @@ run_parameters_domain_randomization.csv,obs_noise_scale_joint_vel,domain_rand,ra
 run_parameters_domain_randomization.csv,obs_noise_scales_json,domain_rand,JSON,Full per-signal observation-noise scale dict as JSON (complete record; signal keys differ by env).
 run_parameters_domain_randomization.csv,perturbation_enable,domain_rand,bool,Whether random external pushes (pert_config) were applied. False for all runs here.
 run_parameters_domain_randomization.csv,force_target_sinusoid,domain_rand,bool,Whether the grasp force target follows a phase-randomized sinusoid (TesolloCubePinch sinusoid queues). Empty = constant set-and-hold force target.
-run_parameters_domain_randomization.csv,force_target_period,domain_rand,s,Period of the sinusoidal force target when force_target_sinusoid is true.
+run_parameters_domain_randomization.csv,force_target_frequency,domain_rand,Hz,Frequency of the sinusoidal force target when force_target_sinusoid is true. Runs before 2026-07-27 stored force_target_period (s) instead and are converted as 1/period.
+run_parameters_domain_randomization.csv,force_target_amplitude_scale,domain_rand,fraction,Fraction of force_target_range the sinusoid spans about the range midpoint. 1.0 touches both ends; 0.0 is a constant mid. Defaults to 1.0 for runs predating the field.
+run_parameters_domain_randomization.csv,force_target_phase_min,domain_rand,rad,Lower bound of the per-episode uniform phase offset for the force sinusoid.
+run_parameters_domain_randomization.csv,force_target_phase_max,domain_rand,rad,Upper bound of the per-episode uniform phase offset. Equal to the min means a pinned phase.
 run_parameters_domain_randomization.csv,force_target_range_min,domain_rand,N,Lower bound of the commanded grasp-force target range (TesolloCubePinch).
 run_parameters_domain_randomization.csv,force_target_range_max,domain_rand,N,Upper bound of the commanded grasp-force target range (TesolloCubePinch).
 run_parameters_training.csv,num_timesteps,training,env steps,Total environment steps of training.

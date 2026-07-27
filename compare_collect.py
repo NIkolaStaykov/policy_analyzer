@@ -73,6 +73,11 @@ def main() -> int:
             _dt=np.array(result["dt"]),
             _mode=np.array(args.mode),
             _benchmark=np.array(args.benchmark),
+            # Model-level domain randomization policy of this eval. restore_policy
+            # loads the env without a randomization_fn, so every rollout runs on
+            # the nominal model regardless of how the policy was trained. Grid
+            # caches (grid_collect) stamp "pinned" instead.
+            _dr=np.array("nominal"),
             _env_name=np.array(handles["env_name"]),
             _sensor_bundle=np.array(str(handles["env_cfg"].sensor_bundle)),
             **channels,

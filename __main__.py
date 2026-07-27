@@ -103,6 +103,15 @@ def _tail(path: Path, n_chars: int = 600) -> str:
 
 # ── compare-eval cache helpers (no JAX) ─────────────────────────────────────────
 
+# The grid pseudo-benchmark: instead of sampling episode parameters from the
+# training distribution (compare_collect), sweep a deterministic grid over the
+# run's randomization ranges with every randomized quantity pinned per cell
+# (grid_collect). Cells are cheap-ish but each recompiles, so rollouts per cell
+# are fixed server-side rather than taken from the UI's n_rollouts.
+GRID_BENCHMARK = "grid"
+GRID_N_ROLLOUTS = 8
+
+
 def _compare_cache_path(run_name: str, mode: str, benchmark: str) -> Path:
     return ANALYSIS_DIR / "compare_cache" / run_name / benchmark / f"{mode}.npz"
 
@@ -128,6 +137,28 @@ def _load_compare_cache(run_name: str, mode: str, benchmark: str) -> dict | None
             "sensor_bundle": str(z["_sensor_bundle"]),
             # Older caches predate _dt; None disables seconds→steps conversion.
             "dt": float(z["_dt"]) if "_dt" in z.files else None,
+        }
+    except Exception:
+        return None
+
+
+def _load_grid_cache(run_name: str, mode: str) -> dict | None:
+    """Load a grid_collect npz: channels [n_cells, N, T] + grid metadata."""
+    import numpy as np
+    p = _compare_cache_path(run_name, mode, GRID_BENCHMARK)
+    if not p.exists():
+        return None
+    try:
+        z = np.load(p, allow_pickle=False)
+        names = [str(n) for n in z["_channels"]]
+        return {
+            "channels": {n: z[n] for n in names},
+            "axes": json.loads(str(z["_grid_axes"])),
+            "cell_values": z["_cell_values"],
+            "n_rollouts": int(z["_n_rollouts"]),
+            "env_name": str(z["_env_name"]),
+            "sensor_bundle": str(z["_sensor_bundle"]),
+            "dt": float(z["_dt"]),
         }
     except Exception:
         return None
@@ -159,7 +190,41 @@ def _make_handler(server: "AnalysisServer", analysis_dir: Path):
                 self._nocache_html = False
             super().end_headers()
 
+        def _error_json(self, exc: Exception) -> None:
+            """Report a handler crash as a 500 + JSON body. An unhandled
+            exception otherwise closes the connection with an empty reply,
+            which the frontend cannot distinguish from a dead server."""
+            import traceback
+            traceback.print_exc()
+            try:
+                body = json.dumps(
+                    {"error": f"{type(exc).__name__}: {exc}"}
+                ).encode()
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception:
+                pass  # headers already sent (e.g. mid-SSE) — nothing to salvage
+
         def do_GET(self):
+            try:
+                self._do_GET()
+            except (BrokenPipeError, ConnectionResetError):
+                raise
+            except Exception as exc:  # noqa: BLE001 — HTTP boundary
+                self._error_json(exc)
+
+        def do_POST(self):
+            try:
+                self._do_POST()
+            except (BrokenPipeError, ConnectionResetError):
+                raise
+            except Exception as exc:  # noqa: BLE001 — HTTP boundary
+                self._error_json(exc)
+
+        def _do_GET(self):
             parsed = urllib.parse.urlsplit(self.path)
             path = parsed.path
             params = dict(urllib.parse.parse_qsl(parsed.query))
@@ -240,7 +305,7 @@ def _make_handler(server: "AnalysisServer", analysis_dir: Path):
             self.wfile.write(("data: " + json.dumps(obj) + "\n\n").encode())
             self.wfile.flush()
 
-        def do_POST(self):
+        def _do_POST(self):
             path = urllib.parse.urlsplit(self.path).path
             if path == "/api/sessions":
                 length = int(self.headers.get("Content-Length", 0))
@@ -551,14 +616,23 @@ class AnalysisServer:
         done = out_path.parent / f"{out_path.stem}.DONE"
         done.unlink(missing_ok=True)
 
-        cmd = [
-            sys.executable, "-m", "policy_analyzer.compare_collect",
-            "--log-dir", str(self.logs_dir / run_name),
-            "--out", str(out_path),
-            "--mode", mode,
-            "--n-rollouts", str(task["n_rollouts"]),
-            "--benchmark", benchmark,
-        ]
+        if benchmark == GRID_BENCHMARK:
+            cmd = [
+                sys.executable, "-m", "policy_analyzer.grid_collect",
+                "--log-dir", str(self.logs_dir / run_name),
+                "--out", str(out_path),
+                "--mode", mode,
+                "--n-rollouts", str(task["n_rollouts"]),
+            ]
+        else:
+            cmd = [
+                sys.executable, "-m", "policy_analyzer.compare_collect",
+                "--log-dir", str(self.logs_dir / run_name),
+                "--out", str(out_path),
+                "--mode", mode,
+                "--n-rollouts", str(task["n_rollouts"]),
+                "--benchmark", benchmark,
+            ]
         env = os.environ.copy()
         env["CUDA_VISIBLE_DEVICES"] = str(gpu)
 
@@ -711,10 +785,24 @@ class AnalysisServer:
     def compare_benchmarks(self, env: str) -> list[dict]:
         """Benchmarks selectable for an env (label/description/name), default first."""
         from policy_analyzer import benchmarks
-        return [
+        from policy_analyzer.grid_collect import SUPPORTED_ENVS as _grid_envs
+        out = [
             {"name": b["name"], "label": b["label"], "description": b["description"]}
             for b in benchmarks.benchmarks_for_env(env)
         ]
+        if env in _grid_envs:
+            out.append({
+                "name": GRID_BENCHMARK,
+                "label": "Grid — pinned randomization sweep",
+                "description": (
+                    "Deterministic grid over the run's randomization ranges "
+                    f"(episode + model DR), {GRID_N_ROLLOUTS} rollouts per cell "
+                    "with every randomized quantity pinned. Plots success rate "
+                    "vs the primary grid axis at a single threshold "
+                    "(the reference value, else the sweep midpoint)."
+                ),
+            })
+        return out
 
     def start_compare(self, body: dict) -> dict:
         """Queue evals for any uncached runs and register a compare job."""
@@ -723,6 +811,12 @@ class AnalysisServer:
         policies = body.get("policies", [])
         criterion = body.get("criterion", {})
         benchmark = body.get("benchmark", "default")
+        if benchmark == GRID_BENCHMARK:
+            # Per-cell count is fixed: the UI's n_rollouts is calibrated for one
+            # pooled distribution, not for every grid cell (each of which also
+            # pays a fresh JIT), and a mismatch would force perpetual re-collects
+            # against the cached cell count.
+            n_rollouts = GRID_N_ROLLOUTS
 
         cid = f"cmp-{time.strftime('%Y%m%d-%H%M%S')}-{int(time.time() * 1000) % 1000:03d}"
         with self._lock:
@@ -787,7 +881,11 @@ class AnalysisServer:
         for pol in job["policies"]:
             seeds = []
             for run_name in pol.get("run_names", []):
-                cache = _load_compare_cache(run_name, mode, benchmark)
+                cache = (
+                    _load_grid_cache(run_name, mode)
+                    if benchmark == GRID_BENCHMARK
+                    else _load_compare_cache(run_name, mode, benchmark)
+                )
                 if cache:
                     seeds.append(cache)
             if seeds:
@@ -796,7 +894,10 @@ class AnalysisServer:
                     "sensor_bundle": pol.get("sensor_bundle", ""),
                     "seeds": seeds,
                 })
-        result = success_curve.compute_curves(cmp_policies, job["criterion"])
+        if benchmark == GRID_BENCHMARK:
+            result = success_curve.compute_grid_curves(cmp_policies, job["criterion"])
+        else:
+            result = success_curve.compute_curves(cmp_policies, job["criterion"])
         return {"status": "ready", "runs": runs_status, "result": result}
 
     def delete_session(self, sid: str) -> bool:
@@ -840,6 +941,19 @@ def main() -> None:
     ap.add_argument("--serve", type=int, metavar="PORT", dest="port",
                     help=argparse.SUPPRESS)
     args = ap.parse_args()
+
+    # The server itself never imports JAX, but most API endpoints (and every
+    # collect subprocess, which reuses sys.executable) need numpy. Fail fast
+    # with a pointer instead of 500-ing on first use: launching with a bare
+    # `python` outside the venv is exactly how the Compare tab goes dead.
+    try:
+        import numpy  # noqa: F401
+    except ImportError:
+        sys.exit(
+            f"policy_analyzer: {sys.executable} has no numpy — launch with the "
+            "training venv, e.g.\n"
+            "  mujoco_playground/.venv/bin/python -m policy_analyzer"
+        )
 
     server = AnalysisServer(
         analysis_dir=ANALYSIS_DIR,

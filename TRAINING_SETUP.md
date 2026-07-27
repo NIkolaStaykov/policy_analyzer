@@ -60,15 +60,22 @@ common settings; where the two tasks differ, both are given.
   steps** (0.5 / ctrl_dt 0.05). `success_reward = 10.0`.
 
 **For the sinusoid** (`pinch_sweep_size_rand_sinusoid-*` queues)
-- Enabled via `force_target_sinusoid: true`, `force_target_period: 2.0` s.
-- **Amplitude:** the sinusoid sweeps the full `force_target_range [2, 5]` N once
-  per period → mean ≈ 3.5 N, amplitude ≈ 1.5 N.
-- **Phase randomization range:** phase is sampled **per-episode on reset over the
-  full cycle** (a uniform 0…2π / 0…`force_target_period` offset), so the policy
-  cannot memorize a fixed schedule and must track force via feedback.
-  (Note: only `force_target_sinusoid`/`period`/`range` are logged in the env
-  config; the explicit amplitude and phase are derived from these + the queue
-  YAML description, not stored as separate numeric fields.)
+- Enabled via `force_target_sinusoid: true`, `force_target_frequency: 0.5` Hz.
+- **Amplitude:** `force_target_amplitude_scale` (default `1.0`) sets the fraction
+  of `force_target_range` the sinusoid spans, always centred on the range
+  midpoint. At scale 1.0 over `[2, 5]` N → mean 3.5 N, amplitude 1.5 N; scale 0.5
+  → mean 3.5 N, amplitude 0.75 N; scale 0 → constant 3.5 N.
+- **Phase randomization range:** `force_target_phase`, sampled uniformly
+  **per-episode on reset**. The default `[0, 2π]` covers the full cycle so the
+  policy cannot memorize a fixed schedule and must track force via feedback;
+  setting `lo == hi` pins a fixed phase.
+
+  *Schema note (2026-07-27):* frequency, amplitude and phase are now explicit
+  numeric config fields. Runs before this date stored `force_target_period`
+  (seconds/cycle) instead, with amplitude and phase implicit — `1/period` gives
+  the comparable frequency, amplitude scale was effectively 1.0 and the phase
+  range `[0, 2π]`. `extract_run_parameters.py` normalizes both schemas onto the
+  `force_target_frequency` column.
 
 ### Rotation env
 

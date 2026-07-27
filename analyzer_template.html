@@ -1593,8 +1593,20 @@ function pollCompare(cid) {
   updateGenEnabled();   // disables Generate while running
   const tick = async () => {
     let data;
-    try { data = await fetch(`/api/compare/${cid}?t=${Date.now()}`).then(r => r.json()); }
-    catch (_) { return; }
+    try {
+      data = await fetch(`/api/compare/${cid}?t=${Date.now()}`)
+        .then(r => (r.ok ? r.json() : null));
+    }
+    catch (_) { return; }  // transient network error — keep polling
+    if (!data || !data.status) {
+      // 404/500 or malformed: the job is gone (e.g. server restart lost it).
+      // Without this the timer never clears and Generate stays disabled.
+      clearInterval(comparePollTimer); comparePollTimer = null;
+      st.className = 'err';
+      st.textContent = 'Compare job lost (server restarted?) — hit Generate again.';
+      updateGenEnabled();
+      return;
+    }
     if (data.status === 'ready') {
       clearInterval(comparePollTimer); comparePollTimer = null;
       st.className = ''; st.textContent = 'Done.';
@@ -1610,6 +1622,13 @@ function pollCompare(cid) {
     let msg = `Collecting rollouts — ${ready}/${runs.length} cached, ${running} running…`;
     if (errored.length) msg += `  ·  ${errored.length} failed: ${errored[0].error ? errored[0].error.slice(0, 80) : ''}`;
     st.textContent = msg;
+    if (!running && errored.length) {
+      // Terminal: nothing running or queued and at least one run failed — the
+      // server will keep reporting "collecting" forever, so stop here and
+      // re-enable Generate (retry requeues only the failed runs).
+      clearInterval(comparePollTimer); comparePollTimer = null;
+      updateGenEnabled();
+    }
   };
   comparePollTimer = setInterval(tick, 1500);
   tick();
@@ -1718,7 +1737,7 @@ function renderCompareChart(result) {
     : result.success_mode === 'average_above' ? `mean metric above thr · ${skipNote}`
     : `hold ${result.hold_steps} steps`;
   const layout = {
-    ...basePlotLayout(`Success rate vs threshold · ${critNote}`),
+    ...basePlotLayout(result.title || `Success rate vs threshold · ${critNote}`),
     showlegend: true,
     margin: {l: 50, r: 10, t: 28, b: 44},
     xaxis: {
