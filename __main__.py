@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import hashlib
 import http.server
 import json
 import os
@@ -47,6 +48,20 @@ _APP_ASSETS = Path(__file__).parent / "assets"
 _MAX_OOM_RETRIES = 10
 _EXIT_OOM = 75            # collect_one EX_TEMPFAIL exit code
 _SCHED_POLL_SECS = 1.0    # scheduler tick interval
+
+# How many eval subprocesses share a GPU is decided from measured free VRAM, not
+# a fixed count — so the pool shrinks automatically when training or anything
+# else outside this server is using the card.
+#
+# The one wrinkle is that a job takes ~10 s to allocate (imports + checkpoint
+# restore come first), during which nvidia-smi still reports its memory as free.
+# Admitting on the raw reading would let a burst of launches all see an empty
+# card. So a just-launched job is charged its expected footprint until it has
+# had time to allocate for real. Both numbers are measured, not guessed: a grid
+# job holds ~2.5-2.7 GB almost independently of batch width (2568 MiB at 280
+# concurrent episodes, 2664 MiB at 4096), and its allocation lands ~9 s in.
+EXPECTED_JOB_VRAM_GB = 3.0
+VRAM_SETTLE_SECS = 12.0
 
 
 # ── listing helpers (no JAX import) ─────────────────────────────────────────────
@@ -106,19 +121,77 @@ def _tail(path: Path, n_chars: int = 600) -> str:
 # The grid pseudo-benchmark: instead of sampling episode parameters from the
 # training distribution (compare_collect), sweep a deterministic grid over the
 # run's randomization ranges with every randomized quantity pinned per cell
-# (grid_collect). Cells are cheap-ish but each recompiles, so rollouts per cell
-# are fixed server-side rather than taken from the UI's n_rollouts.
+# (grid_collect). The whole grid runs as one batch, so cells no longer each pay
+# a compile and rollouts-per-cell is a normal UI knob (Advanced panel) rather
+# than a server-side constant.
 GRID_BENCHMARK = "grid"
-GRID_N_ROLLOUTS = 8
+# Default rollouts per cell; the UI may change it. Mirrors
+# grid_collect.DEFAULT_N_ROLLOUTS — see the note there for why it is 64. A full
+# grid pins every swept quantity, so repeats only average over what stays random
+# (un-swept axes, obs noise/bias, perturbations, stochastic actions); they matter
+# most for a partial sweep. 64 also keeps any grid above the ~64-concurrent-
+# episode threshold below which the sim reads systematically high.
+GRID_N_ROLLOUTS = 64
+GRID_MAX_CELLS = 8192    # mirrors grid_collect.DEFAULT_MAX_CELLS
 
 
 def _compare_cache_path(run_name: str, mode: str, benchmark: str) -> Path:
+    # `benchmark` may be a composite grid id "grid/<sig>", which nests one level
+    # deeper (compare_cache/<run>/grid/<sig>/<mode>.npz) — each axis selection +
+    # resolution gets its own cache, so different grids never collide.
     return ANALYSIS_DIR / "compare_cache" / run_name / benchmark / f"{mode}.npz"
+
+
+def _is_grid(benchmark: str) -> bool:
+    """True for the grid benchmark, bare ("grid") or spec-keyed ("grid/<sig>")."""
+    return benchmark == GRID_BENCHMARK or benchmark.startswith(GRID_BENCHMARK + "/")
+
+
+def _grid_sig(grid_spec: dict | None) -> str:
+    """Deterministic short signature of a grid axis selection + resolution.
+
+    Computed identically in start_compare and view_score so the client only sends
+    the spec, and re-scoring targets exactly the collected grid's cache.
+    """
+    axes = (grid_spec or {}).get("axes", [])
+    canon = ",".join(
+        f"{a['name']}:{int(a['points'])}"
+        for a in sorted(axes, key=lambda a: a["name"])
+    )
+    return hashlib.sha1(canon.encode()).hexdigest()[:8]
 
 
 def _compare_cache_done(run_name: str, mode: str, benchmark: str) -> bool:
     p = _compare_cache_path(run_name, mode, benchmark)
     return (p.parent / f"{p.stem}.DONE").exists() and p.exists()
+
+
+def _collect_log_path(run_name: str, mode: str, benchmark: str) -> Path:
+    """Log written by the collector subprocess (see _launch_compare_locked)."""
+    p = _compare_cache_path(run_name, mode, benchmark)
+    return p.parent / f"{p.stem}.collect.log"
+
+
+def _collect_progress(run_name: str, mode: str, benchmark: str) -> str | None:
+    """Sub-seed progress for a running collector, from the tail of its log.
+
+    Grid collection prints one "[grid c/n]" line per cell, so a long sweep can
+    report how far it is instead of sitting on "running" for minutes. Sampled
+    benchmarks are one batched eval with nothing to report → None.
+    """
+    path = _collect_log_path(run_name, mode, benchmark)
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            f.seek(max(0, f.tell() - 4096))
+            tail = f.read().decode("utf-8", "replace")
+    except OSError:
+        return None
+    hits = re.findall(r"\[grid (\d+)/(\d+)\]", tail)
+    if not hits:
+        return None
+    c, n = hits[-1]
+    return f"cell {c}/{n}"
 
 
 def _load_compare_cache(run_name: str, mode: str, benchmark: str) -> dict | None:
@@ -142,10 +215,14 @@ def _load_compare_cache(run_name: str, mode: str, benchmark: str) -> dict | None
         return None
 
 
-def _load_grid_cache(run_name: str, mode: str) -> dict | None:
-    """Load a grid_collect npz: channels [n_cells, N, T] + grid metadata."""
+def _load_grid_cache(run_name: str, mode: str, benchmark: str = GRID_BENCHMARK) -> dict | None:
+    """Load a grid_collect npz: channels [n_cells, N, T] + grid metadata.
+
+    `benchmark` is the spec-keyed id ("grid/<sig>") so different axis selections
+    load from their own cache.
+    """
     import numpy as np
-    p = _compare_cache_path(run_name, mode, GRID_BENCHMARK)
+    p = _compare_cache_path(run_name, mode, benchmark)
     if not p.exists():
         return None
     try:
@@ -162,6 +239,128 @@ def _load_grid_cache(run_name: str, mode: str) -> dict | None:
         }
     except Exception:
         return None
+
+
+def _load_compare_policies(policies: list, mode: str, benchmark: str) -> list:
+    """Load each policy's cached seeds into success_curve's cmp_policies shape.
+
+    Seeds whose cache is missing are skipped; a policy with no loadable seed is
+    dropped. Used both by the poll path (compare_status) and the synchronous
+    grid re-score endpoint, which reads the same on-disk caches.
+    """
+    cmp_policies = []
+    for pol in policies:
+        seeds = []
+        for run_name in pol.get("run_names", []):
+            cache = (
+                _load_grid_cache(run_name, mode, benchmark)
+                if _is_grid(benchmark)
+                else _load_compare_cache(run_name, mode, benchmark)
+            )
+            if cache:
+                seeds.append(cache)
+        if seeds:
+            cmp_policies.append({
+                "label": pol.get("label", ""),
+                "sensor_bundle": pol.get("sensor_bundle", ""),
+                "seeds": seeds,
+            })
+    return cmp_policies
+
+
+def _load_run_config(run_name: str) -> dict | None:
+    """Read a run's authoritative checkpoints/config.json as a plain dict."""
+    p = LOGS_DIR / run_name / "checkpoints" / "config.json"
+    if not p.exists():
+        return None
+    try:
+        return json.loads(p.read_text())
+    except Exception:
+        return None
+
+
+def _compute_view(cmp_policies: list, criterion: dict, visualization: str) -> dict:
+    """Render loaded caches as the chosen view — decoupled from how they were
+    gathered. Heatmap bins/pools per compute_grid_heatmap (grid cells or sampled
+    bins via criterion['heatmap_axes']); curves pool every rollout."""
+    from policy_analyzer import success_curve
+    if visualization == "heatmap":
+        return success_curve.compute_grid_heatmap(cmp_policies, criterion)
+    return success_curve.compute_curves(cmp_policies, criterion)
+
+
+# ── saved datasets (named collection identities; caches live in compare_cache) ──
+
+DATASETS_DIR = ANALYSIS_DIR / "datasets"
+
+
+def _slugify(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "dataset"
+
+
+def _dataset_cache_bench(meta: dict) -> str:
+    """On-disk cache benchmark id for a dataset (grid selections are spec-keyed)."""
+    benchmark = meta.get("benchmark", "default")
+    if benchmark == GRID_BENCHMARK:
+        return f"{GRID_BENCHMARK}/{_grid_sig(meta.get('grid_spec'))}"
+    return benchmark
+
+
+def _dataset_path(slug: str) -> Path:
+    return DATASETS_DIR / f"{slug}.json"
+
+
+def _write_dataset(meta: dict) -> None:
+    DATASETS_DIR.mkdir(parents=True, exist_ok=True)
+    _dataset_path(meta["slug"]).write_text(json.dumps(meta, indent=2))
+
+
+def _load_dataset(slug: str) -> dict | None:
+    p = _dataset_path(slug)
+    if not p.exists():
+        return None
+    try:
+        return json.loads(p.read_text())
+    except Exception:
+        return None
+
+
+def _dataset_progress(meta: dict) -> tuple[str, int, int]:
+    """(status, seeds_done, seeds_total) — "ready" once every run's cache is present.
+
+    Counted off the on-disk DONE sentinels, so progress survives a page reload or
+    a server restart mid-collection.
+    """
+    bench, mode = _dataset_cache_bench(meta), meta.get("mode", "det")
+    runs = [r for pol in meta.get("policies", []) for r in pol.get("run_names", [])]
+    if not runs:
+        return "empty", 0, 0
+    done = sum(_compare_cache_done(r, mode, bench) for r in runs)
+    return ("ready" if done == len(runs) else "collecting"), done, len(runs)
+
+
+def _list_datasets() -> list[dict]:
+    if not DATASETS_DIR.is_dir():
+        return []
+    out = []
+    for p in DATASETS_DIR.glob("*.json"):
+        meta = _load_dataset(p.stem)
+        if not meta:
+            continue
+        status, seeds_done, seeds_total = _dataset_progress(meta)
+        out.append({
+            "name": meta.get("name", p.stem),
+            "slug": meta.get("slug", p.stem),
+            "env": meta.get("env", ""),
+            "benchmark": meta.get("benchmark", "default"),
+            "mode": meta.get("mode", "det"),
+            "n_policies": len(meta.get("policies", [])),
+            "created": meta.get("created", ""),
+            "status": status,
+            "seeds_done": seeds_done,
+            "seeds_total": seeds_total,
+        })
+    return sorted(out, key=lambda d: d.get("created", ""), reverse=True)
 
 
 # ── HTTP handler ──────────────────────────────────────────────────────────────
@@ -241,6 +440,17 @@ def _make_handler(server: "AnalysisServer", analysis_dir: Path):
                 self._json(server.compare_config(params.get("env", "")))
             elif path == "/api/compare/benchmarks":
                 self._json(server.compare_benchmarks(params.get("env", "")))
+            elif path == "/api/compare/grid_axes":
+                self._json(server.grid_axes(
+                    params.get("run", ""), params.get("env", "")))
+            elif path == "/api/datasets":
+                self._json(server.list_datasets())
+            elif path.startswith("/api/datasets/"):
+                meta = server.get_dataset(path[len("/api/datasets/"):])
+                if meta is not None:
+                    self._json(meta)
+                else:
+                    self._no_body(404)
             elif path.startswith("/api/compare/"):
                 cid = path[len("/api/compare/"):]
                 data = server.compare_status(cid)
@@ -321,12 +531,23 @@ def _make_handler(server: "AnalysisServer", analysis_dir: Path):
                 length = int(self.headers.get("Content-Length", 0))
                 body = json.loads(self.rfile.read(length))
                 self._json(server.start_compare(body))
+            elif path == "/api/compare/view":
+                length = int(self.headers.get("Content-Length", 0))
+                body = json.loads(self.rfile.read(length))
+                self._json(server.view_score(body))
+            elif path == "/api/datasets":
+                length = int(self.headers.get("Content-Length", 0))
+                body = json.loads(self.rfile.read(length))
+                self._json(server.create_dataset(body))
             else:
                 self._no_body(405)
 
         def do_DELETE(self):
             path = urllib.parse.urlsplit(self.path).path
-            if path.startswith("/api/sessions/"):
+            if path.startswith("/api/datasets/"):
+                ok = server.delete_dataset(path[len("/api/datasets/"):])
+                self._no_body(200 if ok else 404)
+            elif path.startswith("/api/sessions/"):
                 sid = path[len("/api/sessions/"):]
                 ok = server.delete_session(sid)
                 self._no_body(200 if ok else 404)
@@ -361,7 +582,7 @@ class AnalysisServer:
         # scheduler state (guarded by _lock)
         self._gpus = _detect_gpus()
         self._pending: collections.deque[tuple] = collections.deque()
-        self._running: dict[int, dict] = {}          # gpu_id -> job dict
+        self._running: dict[int, list[dict]] = {}    # gpu_id -> running job dicts
         self._oom_attempts: dict[tuple[str, bool], int] = {}
 
         # compare-eval scheduler state (guarded by _lock). Compare jobs are
@@ -480,10 +701,34 @@ class AnalysisServer:
             for q in listeners:
                 q.put(snap)
 
+    def _unsettled_reserve_locked(self, gpu: int) -> float:
+        """VRAM (GB) to hold back for jobs on `gpu` that are still allocating.
+
+        nvidia-smi reports a just-launched job's memory as free until it gets
+        past imports and checkpoint restore, so without this a burst of launches
+        would each see an empty card. Caller holds _lock.
+        """
+        now = time.time()
+        young = sum(1 for j in self._running.get(gpu, ())
+                    if now - j.get("started", 0.0) < VRAM_SETTLE_SECS)
+        return young * EXPECTED_JOB_VRAM_GB
+
+    def _drop_running(self, gpu: int, job: dict) -> None:
+        """Remove one finished job from a GPU's slot list. Caller holds _lock."""
+        jobs = self._running.get(gpu)
+        if not jobs:
+            return
+        # Identity, not equality: several jobs on one GPU can look alike.
+        self._running[gpu] = [j for j in jobs if j is not job]
+        if not self._running[gpu]:
+            self._running.pop(gpu, None)
+
     def _reap(self) -> None:
         """Mark seeds done as their DONE sentinels appear; handle group exit."""
         with self._lock:
-            running = list(self._running.items())
+            running = [(gpu, job)
+                       for gpu, jobs in self._running.items()
+                       for job in jobs]
 
         for gpu, job in running:
             if job.get("kind") == "compare":
@@ -534,23 +779,34 @@ class AnalysisServer:
                 print(f"[GPU {gpu}] {sid}/{tag} exited rc={rc}", flush=True)
 
             with self._lock:
-                self._running.pop(gpu, None)
+                self._drop_running(gpu, job)
 
     def _dispatch(self) -> None:
-        """Launch queued work (session rollouts, then compare evals) onto free
-        GPUs that have enough VRAM. Session rollouts take priority."""
+        """Launch queued work (session rollouts, then compare evals) onto GPUs
+        with a free slot and enough VRAM. Session rollouts take priority.
+
+        There is no cap on jobs per GPU: a GPU accepts another job whenever it
+        still has MIN_FREE_VRAM_GB of headroom, counting jobs too young to have
+        allocated yet (see EXPECTED_JOB_VRAM_GB). A job that is admitted anyway
+        and runs out of memory exits EX_TEMPFAIL and is requeued, so the gate
+        only has to be roughly right.
+        """
         with self._lock:
-            free_gpus = [g for g in self._gpus if g not in self._running]
             has_work = bool(self._pending) or bool(self._compare_pending)
-        if not has_work or not free_gpus:
+        if not has_work:
             return
 
-        for gpu in free_gpus:
+        for gpu in self._gpus:
             with self._lock:
                 if not (self._pending or self._compare_pending):
                     break
             free = _free_vram_gb(gpu)  # shell out outside the lock
             with self._lock:
+                # Headroom the card would still have once the candidate job AND
+                # any jobs still allocating have taken their share. Charging the
+                # candidate matters: without it, a card with 7 GB free accepts
+                # two 2.6 GB jobs and lands under MIN_FREE_VRAM_GB.
+                free -= self._unsettled_reserve_locked(gpu) + EXPECTED_JOB_VRAM_GB
                 if self._pending:
                     sid, det, seeds = self._pending[0]
                     sess = self._sessions.get(sid)
@@ -598,14 +854,15 @@ class AnalysisServer:
             cmd, cwd=str(PKG_DIR.parent), env=env,
             stdout=logf, stderr=subprocess.STDOUT,
         )
-        self._running[gpu] = {
+        self._running.setdefault(gpu, []).append({
             "proc": proc, "sid": sid, "det": det, "seeds": seeds,
             "names": names, "pending": set(names),
-            "logf": logf, "logpath": logpath,
-        }
+            "logf": logf, "logpath": logpath, "started": time.time(),
+        })
         for name in names:
             sess.update_rollout(name, "running")
-        print(f"[GPU {gpu}] launched {sid}/{tag} seeds={list(seeds)}", flush=True)
+        print(f"[GPU {gpu}] launched {sid}/{tag} seeds={list(seeds)} "
+              f"({len(self._running[gpu])} running)", flush=True)
 
     def _launch_compare_locked(self, gpu: int, task: dict) -> None:
         """Spawn a compare_collect subprocess for one run+mode+benchmark. Caller holds _lock."""
@@ -616,7 +873,7 @@ class AnalysisServer:
         done = out_path.parent / f"{out_path.stem}.DONE"
         done.unlink(missing_ok=True)
 
-        if benchmark == GRID_BENCHMARK:
+        if _is_grid(benchmark):
             cmd = [
                 sys.executable, "-m", "policy_analyzer.grid_collect",
                 "--log-dir", str(self.logs_dir / run_name),
@@ -624,6 +881,11 @@ class AnalysisServer:
                 "--mode", mode,
                 "--n-rollouts", str(task["n_rollouts"]),
             ]
+            if task.get("axes"):
+                cmd += ["--axes", ",".join(task["axes"])]
+            if task.get("axis_points"):
+                cmd += ["--axis-points",
+                        ",".join(f"{k}={v}" for k, v in task["axis_points"].items())]
         else:
             cmd = [
                 sys.executable, "-m", "policy_analyzer.compare_collect",
@@ -642,13 +904,15 @@ class AnalysisServer:
             cmd, cwd=str(PKG_DIR.parent), env=env,
             stdout=logf, stderr=subprocess.STDOUT,
         )
-        self._running[gpu] = {
+        self._running.setdefault(gpu, []).append({
             "kind": "compare", "proc": proc, "run_name": run_name, "mode": mode,
             "benchmark": benchmark, "n_rollouts": task["n_rollouts"],
             "logf": logf, "logpath": logpath, "out_path": out_path,
-        }
+            "started": time.time(),
+        })
         self._compare_errors.pop((run_name, mode, benchmark), None)
-        print(f"[GPU {gpu}] launched compare {run_name}/{benchmark}/{mode}", flush=True)
+        print(f"[GPU {gpu}] launched compare {run_name}/{benchmark}/{mode} "
+              f"({len(self._running[gpu])} running)", flush=True)
 
     def _reap_compare(self, gpu: int, job: dict) -> None:
         """Resolve a finished compare-eval subprocess."""
@@ -662,7 +926,7 @@ class AnalysisServer:
         done = out_path.parent / f"{out_path.stem}.DONE"
 
         with self._lock:
-            self._running.pop(gpu, None)
+            self._drop_running(gpu, job)
             self._compare_inflight.discard(key)
 
         if rc == _EXIT_OOM:
@@ -769,18 +1033,43 @@ class AnalysisServer:
                 for bench_dir in run_dir.iterdir():
                     if not bench_dir.is_dir():
                         continue
-                    for mode in ("det", "sto"):
-                        if not _compare_cache_done(run_dir.name, mode, bench_dir.name):
-                            continue
-                        cache = _load_compare_cache(run_dir.name, mode, bench_dir.name)
-                        if cache and cache["env_name"] == env:
-                            channels = sorted(cache["channels"].keys())
+                    # Grid caches nest one level deeper (grid/<sig>/<mode>.npz),
+                    # so a benchmark maps to several ids when it's the grid dir.
+                    if bench_dir.name == GRID_BENCHMARK:
+                        bench_ids = [
+                            f"{GRID_BENCHMARK}/{d.name}"
+                            for d in bench_dir.iterdir() if d.is_dir()
+                        ]
+                    else:
+                        bench_ids = [bench_dir.name]
+                    for bid in bench_ids:
+                        for mode in ("det", "sto"):
+                            if not _compare_cache_done(run_dir.name, mode, bid):
+                                continue
+                            cache = (
+                                _load_grid_cache(run_dir.name, mode, bid)
+                                if _is_grid(bid)
+                                else _load_compare_cache(run_dir.name, mode, bid)
+                            )
+                            if cache and cache["env_name"] == env:
+                                channels = sorted(cache["channels"].keys())
+                                break
+                        if channels:
                             break
                     if channels:
                         break
                 if channels:
                     break
         return success_curve.config_for_env(env, channels)
+
+    def grid_axes(self, run: str, env: str) -> list[dict]:
+        """Candidate grid axes for a run, read from its config.json (per-run
+        ranges). Returns UI-safe fields for the Compare-tab checkbox selector."""
+        from policy_analyzer import grid_axes as _ga
+        cfg = _load_run_config(run)
+        if cfg is None or not env:
+            return []
+        return _ga.candidates_ui(env, cfg)
 
     def compare_benchmarks(self, env: str) -> list[dict]:
         """Benchmarks selectable for an env (label/description/name), default first."""
@@ -797,27 +1086,49 @@ class AnalysisServer:
                 "description": (
                     "Deterministic grid over the run's randomization ranges "
                     f"(episode + model DR), {GRID_N_ROLLOUTS} rollouts per cell "
-                    "with every randomized quantity pinned. Plots success rate "
-                    "vs the primary grid axis at a single threshold "
-                    "(the reference value, else the sweep midpoint)."
+                    "by default (Advanced) with every randomized quantity "
+                    "pinned. Choose which axes to "
+                    "sweep (checkboxes, per-axis resolution); renders a colour-coded "
+                    "heatmap where you pick any two axes to plot against (the rest "
+                    "are averaged out)."
                 ),
             })
         return out
 
-    def start_compare(self, body: dict) -> dict:
-        """Queue evals for any uncached runs and register a compare job."""
+    def _resolve_collection(self, body: dict) -> dict:
+        """Normalize a collection request → {mode, n_rollouts, benchmark(resolved),
+        task_extra, grid_spec} or {"error": …}. Grid selections become the
+        spec-keyed benchmark id and carry the axes to sweep."""
         mode = body.get("mode", "det")
         n_rollouts = int(body.get("n_rollouts", 50))
-        policies = body.get("policies", [])
-        criterion = body.get("criterion", {})
         benchmark = body.get("benchmark", "default")
+        task_extra: dict = {}
+        grid_spec = None
         if benchmark == GRID_BENCHMARK:
-            # Per-cell count is fixed: the UI's n_rollouts is calibrated for one
-            # pooled distribution, not for every grid cell (each of which also
-            # pays a fresh JIT), and a mismatch would force perpetual re-collects
-            # against the cached cell count.
-            n_rollouts = GRID_N_ROLLOUTS
+            # Rollouts per cell is its own knob so switching benchmark never
+            # silently invalidates the pooled benchmark's caches.
+            n_rollouts = max(1, int(body.get("grid_n_rollouts", GRID_N_ROLLOUTS)))
+            grid_spec = body.get("grid_spec") or {}
+            sel = grid_spec.get("axes", [])
+            if not sel:
+                return {"error": "select at least one grid axis"}
+            cells = 1
+            for a in sel:
+                cells *= max(1, int(a["points"]))
+            if cells > GRID_MAX_CELLS:
+                return {"error": f"{cells} grid cells exceeds max {GRID_MAX_CELLS}; "
+                                 "uncheck an axis or lower its points"}
+            benchmark = f"{GRID_BENCHMARK}/{_grid_sig(grid_spec)}"
+            task_extra = {
+                "axes": [a["name"] for a in sel],
+                "axis_points": {a["name"]: int(a["points"]) for a in sel},
+            }
+        return {"mode": mode, "n_rollouts": n_rollouts, "benchmark": benchmark,
+                "task_extra": task_extra, "grid_spec": grid_spec}
 
+    def _queue_and_register(self, policies: list, coll: dict, job_extra: dict) -> str:
+        """Enqueue evals for any uncached runs and register a compare job."""
+        mode, n_rollouts, benchmark = coll["mode"], coll["n_rollouts"], coll["benchmark"]
         cid = f"cmp-{time.strftime('%Y%m%d-%H%M%S')}-{int(time.time() * 1000) % 1000:03d}"
         with self._lock:
             for pol in policies:
@@ -832,17 +1143,71 @@ class AnalysisServer:
                     self._compare_errors.pop(key, None)
                     self._compare_pending.append(
                         {"run_name": run_name, "mode": mode,
-                         "benchmark": benchmark, "n_rollouts": n_rollouts}
+                         "benchmark": benchmark, "n_rollouts": n_rollouts,
+                         **coll["task_extra"]}
                     )
             self._compare_jobs[cid] = {
                 "mode": mode, "n_rollouts": n_rollouts, "benchmark": benchmark,
-                "criterion": criterion, "policies": policies,
+                "policies": policies, **job_extra,
             }
+        return cid
+
+    def start_compare(self, body: dict) -> dict:
+        """Queue evals for any uncached runs and register a compare job."""
+        coll = self._resolve_collection(body)
+        if "error" in coll:
+            return coll
+        cid = self._queue_and_register(body.get("policies", []), coll, {
+            "criterion": body.get("criterion", {}),
+            # Visualization is independent of the collection benchmark; default
+            # follows the benchmark only when the client didn't specify one.
+            "visualization": body.get(
+                "visualization", "heatmap" if _is_grid(coll["benchmark"]) else "curves"),
+        })
         return {"compare_id": cid}
 
-    def compare_status(self, cid: str) -> dict | None:
-        from policy_analyzer import success_curve
+    # ── saved datasets ──
+    def list_datasets(self) -> list[dict]:
+        return _list_datasets()
 
+    def get_dataset(self, slug: str) -> dict | None:
+        return _load_dataset(slug)
+
+    def delete_dataset(self, slug: str) -> bool:
+        p = _dataset_path(slug)
+        if not p.exists():
+            return False
+        p.unlink()          # caches are content-addressed and may be shared — keep them
+        return True
+
+    def create_dataset(self, body: dict) -> dict:
+        """Persist a named dataset (collection identity) and queue its collection."""
+        name = (body.get("name") or "").strip()
+        policies = body.get("policies", [])
+        if not name:
+            return {"error": "dataset name required"}
+        if not policies:
+            return {"error": "select at least one policy"}
+        coll = self._resolve_collection(body)
+        if "error" in coll:
+            return coll
+        slug = _slugify(name)
+        meta = {
+            "name": name, "slug": slug, "env": body.get("env", ""),
+            "mode": coll["mode"],
+            # Store the client-form benchmark + grid_spec; the on-disk cache id is
+            # re-derived via _dataset_cache_bench, matching view_score.
+            "benchmark": body.get("benchmark", "default"),
+            "grid_spec": coll["grid_spec"],
+            "grid_n_rollouts": int(body.get("grid_n_rollouts", GRID_N_ROLLOUTS)),
+            "n_rollouts": coll["n_rollouts"], "policies": policies,
+            "created": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        }
+        _write_dataset(meta)
+        cid = self._queue_and_register(policies, coll, {"dataset": slug})
+        return {"dataset": slug, "compare_id": cid}
+
+    def compare_status(self, cid: str) -> dict | None:
         with self._lock:
             job = self._compare_jobs.get(cid)
         if job is None:
@@ -850,17 +1215,30 @@ class AnalysisServer:
 
         mode = job["mode"]
         benchmark = job.get("benchmark", "default")
+        # Which seeds actually hold a GPU right now, so "running" means running
+        # and everything else in flight reports as "queued".
+        with self._lock:
+            on_gpu = {
+                (j["run_name"], j["mode"], j["benchmark"]): gpu
+                for gpu, jobs in self._running.items()
+                for j in jobs if j.get("kind") == "compare"
+            }
         runs_status = []
         all_ready = True
         for pol in job["policies"]:
             for run_name in pol.get("run_names", []):
                 key = (run_name, mode, benchmark)
+                entry = {"run_name": run_name, "policy": pol.get("label", "")}
                 if _compare_cache_done(run_name, mode, benchmark):
                     st = "ready"
                 elif key in self._compare_errors:
                     st = "error"
-                elif key in self._compare_inflight:
+                elif key in on_gpu:
                     st = "running"
+                    entry["gpu"] = on_gpu[key]
+                    entry["progress"] = _collect_progress(run_name, mode, benchmark)
+                elif key in self._compare_inflight:
+                    st = "queued"
                 else:
                     # Not cached, not erroring, not queued → safety net so the
                     # client doesn't poll forever for something never launched.
@@ -868,37 +1246,54 @@ class AnalysisServer:
                     self._compare_errors[key] = "not collected"
                 if st != "ready":
                     all_ready = False
-                runs_status.append({
-                    "run_name": run_name, "status": st,
-                    "error": self._compare_errors.get(key),
-                })
+                entry["status"] = st
+                entry["error"] = self._compare_errors.get(key)
+                runs_status.append(entry)
+
+        n_done = sum(r["status"] == "ready" for r in runs_status)
+        payload = {"runs": runs_status, "seeds_done": n_done,
+                   "seeds_total": len(runs_status)}
 
         if not all_ready:
-            return {"status": "collecting", "runs": runs_status}
+            return {"status": "collecting", **payload}
 
-        # All caches present → load and compute curves.
-        cmp_policies = []
-        for pol in job["policies"]:
-            seeds = []
-            for run_name in pol.get("run_names", []):
-                cache = (
-                    _load_grid_cache(run_name, mode)
-                    if benchmark == GRID_BENCHMARK
-                    else _load_compare_cache(run_name, mode, benchmark)
-                )
-                if cache:
-                    seeds.append(cache)
-            if seeds:
-                cmp_policies.append({
-                    "label": pol.get("label", ""),
-                    "sensor_bundle": pol.get("sensor_bundle", ""),
-                    "seeds": seeds,
-                })
+        # Dataset-collect jobs carry no visualization — collection only. The client
+        # visualizes via view_score over the saved dataset once ready.
+        if job.get("dataset"):
+            return {"status": "ready", **payload}
+
+        # All caches present → render the chosen view (viz independent of source).
+        cmp_policies = _load_compare_policies(job["policies"], mode, benchmark)
+        result = _compute_view(cmp_policies, job["criterion"], job.get("visualization"))
+        return {"status": "ready", **payload, "result": result}
+
+    def view_score(self, body: dict) -> dict:
+        """Render an already-collected cache as any view — no GPU, no new rollouts.
+
+        Collection caches all channels; switching visualization (curves↔heatmap),
+        success channel, threshold, criterion, or (for a sampled heatmap) the bin
+        axes is pure numpy over the cached arrays, so this is synchronous. Serves
+        all four combos: {grid, sampled} × {curves, heatmap}. Returns {"error": …}
+        if a run's cache is missing so the client can fall back to Generate.
+        """
+        mode = body.get("mode", "det")
+        criterion = body.get("criterion", {})
+        policies = body.get("policies", [])
+        visualization = body.get("visualization", "curves")
+        benchmark = body.get("benchmark", "default")
+        # Resolve the on-disk cache id: grid selections are spec-keyed, sampled
+        # benchmarks use their own name.
         if benchmark == GRID_BENCHMARK:
-            result = success_curve.compute_grid_curves(cmp_policies, job["criterion"])
-        else:
-            result = success_curve.compute_curves(cmp_policies, job["criterion"])
-        return {"status": "ready", "runs": runs_status, "result": result}
+            benchmark = f"{GRID_BENCHMARK}/{_grid_sig(body.get('grid_spec'))}"
+        for pol in policies:
+            for run_name in pol.get("run_names", []):
+                if not _compare_cache_done(run_name, mode, benchmark):
+                    return {"error": "not collected"}
+        cmp_policies = _load_compare_policies(policies, mode, benchmark)
+        if not cmp_policies:
+            return {"error": "not collected"}
+        result = _compute_view(cmp_policies, criterion, visualization)
+        return {"status": "ready", "result": result}
 
     def delete_session(self, sid: str) -> bool:
         with self._lock:
@@ -909,12 +1304,14 @@ class AnalysisServer:
             self._pending = collections.deque(
                 t for t in self._pending if t[0] != sid
             )
-            # Kill any running rollouts for this session.
-            for gpu, job in list(self._running.items()):
-                if job["sid"] == sid:
-                    job["proc"].terminate()
-                    job["logf"].close()
-                    self._running.pop(gpu, None)
+            # Kill any running rollouts for this session. Compare jobs share the
+            # slot lists and carry no "sid", hence .get rather than [].
+            for gpu, jobs in list(self._running.items()):
+                for job in list(jobs):
+                    if job.get("sid") == sid:
+                        job["proc"].terminate()
+                        job["logf"].close()
+                        self._drop_running(gpu, job)
             # Notify any SSE listeners that the session is gone.
             self._last_sent.pop(sid, None)
             for q in self._listeners.get(sid, ()):

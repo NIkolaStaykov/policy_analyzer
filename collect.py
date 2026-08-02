@@ -34,6 +34,32 @@ from brax.training.agents.ppo import train as ppo  # noqa: E402
 from policy_analyzer import io_schema  # noqa: E402
 
 
+def _merge_stored_config(cfg, stored: dict) -> None:
+    """Overlay a run's saved config.json onto a fresh default ConfigDict.
+
+    A shallow ``cfg[k] = v`` replaces a nested ConfigDict (e.g. reward_config)
+    wholesale, so a config.json written before a nested default key was added
+    (e.g. reward_config.use_dr_cube_size) drops that key — and the env then
+    crashes with AttributeError the moment it reads it. Recurse into dict-valued
+    keys whose default is itself a ConfigDict, so the stored values overlay the
+    current defaults and keys the stored config never had keep their default
+    (the "legacy default" the new code is written to fall back on).
+    """
+    from ml_collections import config_dict
+
+    for k, v in stored.items():
+        if k not in cfg:
+            continue  # ConfigDict rejects keys absent from the current schema
+        cur = cfg[k]
+        if isinstance(v, dict) and isinstance(cur, config_dict.ConfigDict):
+            _merge_stored_config(cur, v)
+        else:
+            try:
+                cfg[k] = v
+            except Exception:
+                pass  # e.g. a stored value whose type no longer matches
+
+
 def load_env_from_checkpoint(ckpt_str: str):
     """Derive env_name + config + env from an id_checkpoint string in rollout.npz.
 
@@ -53,11 +79,7 @@ def load_env_from_checkpoint(ckpt_str: str):
     config_path = log_dir / "checkpoints" / "config.json"
     if config_path.exists():
         with open(config_path, encoding="utf-8") as f:
-            for k, v in json.load(f).items():
-                try:
-                    cfg[k] = v
-                except Exception:
-                    pass
+            _merge_stored_config(cfg, json.load(f))
     env = registry.load(env_name, config=cfg)
     return env_name, cfg, env
 
@@ -91,11 +113,7 @@ def restore_policy(
     config_path = ckpt_dir / "config.json"
     if config_path.exists():
         with open(config_path, encoding="utf-8") as f:
-            for k, v in json.load(f).items():
-                try:
-                    env_cfg[k] = v
-                except Exception:
-                    pass  # ConfigDict rejects keys absent from the schema
+            _merge_stored_config(env_cfg, json.load(f))
 
     if config_overrides:
         from policy_analyzer import benchmarks

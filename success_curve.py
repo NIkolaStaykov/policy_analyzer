@@ -21,6 +21,9 @@ sensible defaults; every field is overridable from the UI.
 
 from __future__ import annotations
 
+import itertools
+import warnings
+
 import numpy as np
 
 _DEG_PER_RAD = 180.0 / np.pi
@@ -139,6 +142,8 @@ _GRID_AXIS_DISPLAY = {
     "target_angle": (_DEG_PER_RAD, "target angle (deg)"),
     "force_target": (1.0, "target force (N)"),
     "force_phase": (1.0, "force phase (rad)"),
+    "force_frequency": (1.0, "target frequency (Hz)"),
+    "force_amplitude_scale": (1.0, "amplitude scale"),
     "cube_size": (1.0, "cube size (scale)"),
     "cube_pos": (1.0, "cube pos offset (m)"),
     "cube_mass": (1.0, "cube mass (scale)"),
@@ -146,19 +151,59 @@ _GRID_AXIS_DISPLAY = {
 }
 
 
-def compute_grid_curves(policies: list[dict], criterion: dict) -> dict:
-    """Success rate vs the primary grid axis, at a single threshold.
+def _cell_axis_indices(cell_values: np.ndarray, axes: list[dict]) -> np.ndarray:
+    """Map each grid cell's raw coordinates to integer indices into each axis.
 
-    policies: like compute_curves, but each seed is a grid_collect cache:
-        channels {name -> [n_cells, N, T]}, axes (list of {name, kind, values}),
-        cell_values [n_cells, n_axes], dt.
-    The primary axis is the first one (grid_collect orders episode axes first);
-    cells that share a primary-axis value (secondary axes) are averaged. The
-    threshold is criterion.ref_value when set, else the sweep-range midpoint —
-    plotted rate = fraction of rollouts succeeding at that single threshold.
+    grid_collect stores every cell's raw per-axis value (cell_values [n_cells,
+    n_axes]); the heatmap pivots by axis index, so match each coordinate to the
+    nearest of that axis's `values` (floats written and re-read, so exact
+    equality is unsafe). Returns int [n_cells, n_axes].
+    """
+    idx = np.empty(cell_values.shape, dtype=int)
+    for i, ax in enumerate(axes):
+        vals = np.asarray(ax["values"], dtype=float)
+        col = cell_values[:, i]
+        idx[:, i] = np.argmin(np.abs(col[:, None] - vals[None, :]), axis=1)
+    return idx
 
-    Returns the same Plotly-ready shape as compute_curves (x is the axis value,
-    not a threshold), plus "title" and "threshold".
+
+def _reduce_group(
+    arr: np.ndarray, sweep_raw: np.ndarray, success_mode: str,
+    hold_steps: int, skip_steps: int, use_abs: bool,
+) -> tuple[float, float]:
+    """One cell's (success%, mean) from its rollouts [n_i, T]; NaN if empty."""
+    if arr.shape[0] == 0:
+        return float("nan"), float("nan")
+    if success_mode in ("average", "average_above"):
+        succ = _seed_curve_average(
+            arr, sweep_raw, use_abs, skip_steps, success_mode == "average_above"
+        )[0]
+    else:
+        succ = _seed_curve_hold(arr, sweep_raw, hold_steps, use_abs)[0]
+    mean = float((np.abs(arr) if use_abs else arr).mean())
+    return float(succ), mean
+
+
+def _nan_to_none(arr: np.ndarray) -> list:
+    """List with JSON null for NaN (json.dumps would otherwise emit invalid NaN)."""
+    return [None if not np.isfinite(v) else float(v) for v in arr]
+
+
+def compute_grid_heatmap(policies: list[dict], criterion: dict) -> dict:
+    """Per-cell success%/mean for a 2-D heatmap, from EITHER dataset type.
+
+    Two ways a policy's seeds map to cells, chosen per the cache shape:
+      - grid cache (channels [n_cells, N, T] + cell_values + axes): each stored
+        cell is a group of N pinned rollouts — the pinned sweep.
+      - sampled cache (channels [N, T], no cell_values): rollouts are binned into
+        a grid by `criterion["heatmap_axes"]` — each axis carries centers plus the
+        recorded per-episode value channel, and every rollout drops into the
+        nearest-center bin (empty bins → null). Bin edges come from the config
+        ranges, so a sampled heatmap lines up cell-for-cell with the grid one.
+
+    Either way each cell reduces to two scalars (success at a single threshold;
+    threshold-free mean) laid out over the full axis product, and the browser
+    marginalises the unshown axes. Training-seed replicates are averaged per cell.
     """
     channel = criterion["channel"]
     use_abs = bool(criterion.get("abs", False))
@@ -167,88 +212,142 @@ def compute_grid_curves(policies: list[dict], criterion: dict) -> dict:
     hold_steps = int(criterion.get("hold_steps", 10))
     skip_first = float(criterion.get("skip_first", 0.0))  # seconds
 
-    if criterion.get("ref_value") is not None:
+    # Single judging threshold: explicit UI threshold, else env ref, else midpoint.
+    if criterion.get("threshold") is not None:
+        thr_display = float(criterion["threshold"])
+    elif criterion.get("ref_value") is not None:
         thr_display = float(criterion["ref_value"])
     else:
         thr_display = 0.5 * (
             float(criterion["sweep_min"]) + float(criterion["sweep_max"])
         )
     sweep_raw = np.array([thr_display / unit_scale])
+    heatmap_axes = criterion.get("heatmap_axes")  # sampled binning spec, or None
 
-    # Primary axis from the first available seed; all seeds of a policy group
-    # come from the same queue config, so their grids agree.
     first_seed = next(
-        (s for pol in policies for s in pol["seeds"] if s.get("axes")), None
+        (s for pol in policies for s in pol["seeds"]
+         if s["channels"].get(channel) is not None), None
     )
     if first_seed is None:
-        return {"x": [], "policies": [], "xlabel": "", "ylabel": "success rate (%)"}
-    axes = first_seed["axes"]
-    ax0 = axes[0]
-    ax0_vals = np.asarray(ax0["values"], dtype=float)
-    xscale, xlabel = _GRID_AXIS_DISPLAY.get(ax0["name"], (1.0, ax0["name"]))
+        return {"kind": "grid_heatmap", "axes": [], "policies": []}
+    grid_mode = first_seed.get("cell_values") is not None and bool(first_seed.get("axes"))
+
+    # Axis definitions (name + raw-unit centers); grid reads them from the cache,
+    # sampled from the heatmap_axes spec (which also names the binning channel).
+    if grid_mode:
+        axis_defs = [
+            {"name": ax["name"], "values": np.asarray(ax["values"], float)}
+            for ax in first_seed["axes"]
+        ]
+    else:
+        if not heatmap_axes:
+            return {"kind": "grid_heatmap", "axes": [], "policies": []}
+        axis_defs = [
+            {"name": a["name"], "values": np.asarray(a["values"], float),
+             "channel": a["channel"], "scale": float(a.get("channel_scale", 1.0))}
+            for a in heatmap_axes
+        ]
+
+    shape = [len(ax["values"]) for ax in axis_defs]
+    n_cells = int(np.prod(shape)) if shape else 0
+    if n_cells == 0:
+        return {"kind": "grid_heatmap", "axes": [], "policies": []}
+    cell_index = np.array(list(itertools.product(*[range(s) for s in shape])))
+
+    axes_out = []
+    for ax in axis_defs:
+        scale, label = _GRID_AXIS_DISPLAY.get(ax["name"], (1.0, ax["name"]))
+        axes_out.append({
+            "name": ax["name"], "label": label, "kind": "",
+            "values": [float(v) * scale for v in ax["values"]],
+        })
 
     skip_steps_used = 0
     out_policies = []
     for pol in policies:
-        curves = []
+        succ_seeds, mean_seeds = [], []
         n_rollouts = 0
         for seed in pol["seeds"]:
             ch = seed["channels"].get(channel)
-            if ch is None or seed.get("cell_values") is None:
+            if ch is None:
                 continue
-            arr = np.asarray(ch, dtype=float)          # [n_cells, N, T]
-            cell_primary = np.asarray(seed["cell_values"], dtype=float)[:, 0]
-            if arr.shape[0] != cell_primary.shape[0]:
-                continue
-            n_rollouts = max(n_rollouts, arr.shape[1])
+            arr = np.asarray(ch, dtype=float)
+            skip_steps = 0
             if success_mode in ("average", "average_above"):
                 dt = seed.get("dt")
                 skip_steps = int(round(skip_first / dt)) if (dt and skip_first > 0) else 0
                 skip_steps_used = skip_steps
-                above = success_mode == "average_above"
-                rates = np.array([
-                    _seed_curve_average(arr[c], sweep_raw, use_abs, skip_steps, above)[0]
-                    for c in range(arr.shape[0])
-                ])
+
+            if grid_mode:
+                if arr.ndim != 3:
+                    continue
+                cv = np.asarray(seed["cell_values"], dtype=float)
+                if arr.shape[0] != cv.shape[0]:
+                    continue
+                flat = np.ravel_multi_index(
+                    _cell_axis_indices(cv, seed["axes"]).T, shape
+                )
+                groups = {int(flat[c]): arr[c] for c in range(arr.shape[0])}
+                n_rollouts = max(n_rollouts, arr.shape[1])
             else:
-                rates = np.array([
-                    _seed_curve_hold(arr[c], sweep_raw, hold_steps, use_abs)[0]
-                    for c in range(arr.shape[0])
-                ])
-            # Marginalize secondary axes: mean over cells at each primary value.
-            curve = np.array([
-                rates[np.isclose(cell_primary, v)].mean() for v in ax0_vals
-            ])
-            curves.append(curve)
-        if not curves:
+                if arr.ndim != 2:
+                    continue
+                coords = np.empty((arr.shape[0], len(axis_defs)), int)
+                ok = True
+                for i, ax in enumerate(axis_defs):
+                    cc = seed["channels"].get(ax["channel"])
+                    if cc is None:
+                        ok = False
+                        break
+                    v = np.asarray(cc, dtype=float)[:, 0] * ax["scale"]
+                    coords[:, i] = np.argmin(
+                        np.abs(v[:, None] - ax["values"][None, :]), axis=1
+                    )
+                if not ok:
+                    continue
+                flat = np.ravel_multi_index(coords.T, shape)
+                groups = {c: arr[flat == c] for c in range(n_cells)}
+                n_rollouts = max(n_rollouts, arr.shape[0])
+
+            succ = np.full(n_cells, np.nan)
+            mean = np.full(n_cells, np.nan)
+            for cid, g in groups.items():
+                s, m = _reduce_group(g, sweep_raw, success_mode, hold_steps, skip_steps, use_abs)
+                succ[cid], mean[cid] = s, m
+            succ_seeds.append(succ)
+            mean_seeds.append(mean)
+        if not succ_seeds:
             continue
-        stack = np.vstack(curves)  # [n_seeds, n_primary_values]
+        # Average seed replicates per cell, ignoring cells a seed never populated.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)  # all-empty cell → NaN
+            succ_avg = np.nanmean(np.vstack(succ_seeds), axis=0)
+            mean_avg = np.nanmean(np.vstack(mean_seeds), axis=0)
         out_policies.append({
             "label": pol["label"],
             "sensor_bundle": pol.get("sensor_bundle", ""),
-            "n_seeds": stack.shape[0],
+            "n_seeds": len(succ_seeds),
             "n_rollouts": n_rollouts,
-            "mean": stack.mean(axis=0).tolist(),
-            "min": stack.min(axis=0).tolist(),
-            "max": stack.max(axis=0).tolist(),
+            "cell_index": cell_index.tolist(),
+            "success": _nan_to_none(succ_avg),
+            "mean": _nan_to_none(mean_avg),
         })
 
-    title = f"Success rate vs {ax0['name']} · thr {thr_display:g}"
-    if len(axes) > 1:
-        title += " · avg over " + ", ".join(a["name"] for a in axes[1:])
-
+    mean_label = f"mean |{channel}|" if use_abs else f"mean {channel}"
     return {
-        "x": (ax0_vals * xscale).tolist(),
-        "xlabel": xlabel,
-        "ylabel": "success rate (%)",
+        "kind": "grid_heatmap",
+        "axes": axes_out,
         "channel": channel,
         "success_mode": success_mode,
         "hold_steps": hold_steps,
         "skip_first": skip_first,
         "skip_steps": skip_steps_used,
         "threshold": thr_display,
-        "title": title,
-        "ref": None,
+        "binned": not grid_mode,
+        "metrics": [
+            {"key": "success", "label": "success rate (%)", "zmin": 0.0, "zmax": 100.0},
+            {"key": "mean", "label": mean_label, "zmin": None, "zmax": None},
+        ],
         "policies": out_policies,
     }
 
@@ -285,6 +384,10 @@ def compute_curves(policies: list[dict], criterion: dict) -> dict:
             if ch is None:
                 continue
             arr = np.asarray(ch, dtype=float)
+            # A grid cache stores [n_cells, N, T]; pool every cell's rollouts into
+            # one flat [·, T] distribution so the curve reflects the whole grid.
+            if arr.ndim == 3:
+                arr = arr.reshape(-1, arr.shape[-1])
             n_rollouts = max(n_rollouts, arr.shape[0])
             if success_mode in ("average", "average_above"):
                 dt = seed.get("dt")

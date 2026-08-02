@@ -45,12 +45,95 @@
   }
   .tab-btn:hover { color: var(--text); }
   .tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
-  #session-info {
-    margin-left: auto; color: var(--muted); font-size: 11px;
-  }
 
   /* ── panes ── */
   .pane { display: flex; flex: 1; min-height: 0; }
+
+  /* ── modals ── */
+  .modal-backdrop {
+    position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.55);
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .modal-panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    max-height: 90vh; max-width: 92vw; overflow: auto; display: flex; flex-direction: column;
+    box-shadow: 0 8px 40px rgba(0,0,0,.5);
+  }
+  .modal-panel.wide { width: 860px; }
+  .modal-head {
+    display: flex; align-items: center; padding: 10px 14px;
+    border-bottom: 1px solid var(--border); font-size: 13px; flex-shrink: 0;
+  }
+  .modal-head .modal-x {
+    margin-left: auto; background: none; border: none; color: var(--muted);
+    cursor: pointer; font: inherit; font-size: 15px; padding: 0 4px;
+  }
+  .modal-head .modal-x:hover { color: var(--text); }
+  .modal-body { padding: 16px; overflow: auto; }
+  .new-btn {
+    width: 100%; background: #2563eb; color: #fff; border: none;
+    padding: 7px 10px; border-radius: 4px; cursor: pointer; font: inherit; font-size: 12px;
+  }
+  .new-btn:hover { background: #1d4ed8; }
+  #ses-sidebar-new { padding: 8px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+
+  /* ── dataset sidebar (multi-policy) ── */
+  #dataset-list { flex: 1; overflow-y: auto; padding: 6px; }
+  .dataset-item {
+    padding: 6px 8px; margin: 2px 0; border-radius: 4px; cursor: pointer;
+    border: 1px solid transparent; display: flex; align-items: center; gap: 6px;
+  }
+  .dataset-item:hover { background: var(--bg); }
+  .dataset-item.sel { border-color: var(--accent); background: var(--bg); }
+  .dataset-item .ds-body { min-width: 0; flex: 1; }
+  .dataset-item .ds-name { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dataset-item .ds-meta { color: var(--muted); font-size: 10px; }
+  .dataset-item .ds-del {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 12px; padding: 0 2px; flex-shrink: 0; visibility: hidden;
+  }
+  .dataset-item:hover .ds-del { visibility: visible; }
+  .dataset-item .ds-del:hover { color: var(--red); }
+  .ds-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .ds-dot.ready { background: var(--green, #34d399); }
+  .ds-dot.collecting { background: var(--amber, #fbbf24); }
+
+  /* ── collect-dataset modal ── */
+  #collect-cols { display: flex; gap: 16px; }
+  #collect-policies {
+    width: 300px; flex-shrink: 0; display: flex; flex-direction: column;
+    max-height: 64vh; border: 1px solid var(--border); border-radius: 4px; overflow: hidden;
+  }
+  #collect-settings { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 12px; }
+  #collect-settings input[type=text], #collect-settings input[type=number], #collect-settings select {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 5px 7px; border-radius: 3px; font: inherit; font-size: 12px; width: 100%;
+  }
+  #col-status { font-size: 11px; color: var(--muted); min-height: 14px; }
+  #col-status.err { color: var(--red); }
+
+  /* ── per-seed collection progress ── */
+  #col-progress { display: none; flex-direction: column; gap: 3px; max-height: 34vh; overflow-y: auto; }
+  #col-progress.on { display: flex; }
+  .seed-row {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; padding: 2px 0; color: var(--text);
+  }
+  .seed-row .seed-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .seed-row .seed-state { color: var(--muted); font-size: 10px; flex-shrink: 0; }
+  .seed-row.error .seed-state { color: var(--red); }
+  .seed-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--border); }
+  .seed-dot.ready { background: var(--green, #34d399); }
+  .seed-dot.running { background: var(--amber, #fbbf24); animation: seed-pulse 1.2s ease-in-out infinite; }
+  .seed-dot.queued { background: var(--border); }
+  .seed-dot.error { background: var(--red); }
+  @keyframes seed-pulse { 50% { opacity: .3; } }
+  #col-collect {
+    margin-top: auto; background: #2563eb; color: #fff; border: none;
+    padding: 8px 14px; border-radius: 4px; cursor: pointer; font: inherit;
+  }
+  #col-collect:hover:not(:disabled) { background: #1d4ed8; }
+  #col-collect:disabled { background: var(--border); color: var(--muted); cursor: default; }
 
   /* ── configure pane ── */
   #pane-cfg {
@@ -270,6 +353,11 @@
     padding: 3px 2px; color: var(--text); font-size: 11px;
   }
   .qhead:hover { color: var(--blue); }
+  .qhead .qcheck {
+    width: 12px; height: 12px; margin: 0; flex-shrink: 0;
+    align-self: center; cursor: pointer;
+  }
+  .qhead .qcheck:disabled { cursor: default; }
   .qhead .qname { font-weight: 600; word-break: break-all; }
   .qhead .qcount { color: var(--muted); font-size: 10px; flex-shrink: 0; }
   .qhead .qtwist { color: var(--muted); width: 10px; flex-shrink: 0; }
@@ -328,8 +416,19 @@
   #cmp-main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
   #cmp-controls {
     flex-shrink: 0; border-bottom: 1px solid var(--border);
-    padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+    padding: 10px 12px; display: flex; flex-direction: column; gap: 10px;
   }
+  .cmp-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+  #cmp-advanced { border: 1px solid var(--border); border-radius: 4px; padding: 0 8px; }
+  #cmp-advanced[open] { padding-bottom: 8px; }
+  #cmp-advanced > summary {
+    cursor: pointer; color: var(--muted); font-size: 11px; padding: 6px 2px;
+    list-style: none; user-select: none;
+  }
+  #cmp-advanced > summary::-webkit-details-marker { display: none; }
+  #cmp-advanced > summary::before { content: '▸ '; }
+  #cmp-advanced[open] > summary::before { content: '▾ '; }
+  .cmp-adv-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
   .cmp-field { display: flex; flex-direction: column; gap: 3px; }
   .cmp-field label { color: var(--muted); font-size: 10px; }
   .cmp-field select, .cmp-field input {
@@ -355,6 +454,24 @@
   #cmp-dl:disabled, #cmp-dl-data:disabled { color: var(--muted); cursor: default; }
   #cmp-status { flex-shrink: 0; padding: 6px 12px; font-size: 11px; color: var(--muted); min-height: 0; }
   #cmp-status.err { color: var(--red); }
+  #cmp-grid-axes {
+    flex-shrink: 0; border-bottom: 1px solid var(--border); padding: 6px 12px 8px;
+  }
+  .cmp-grid-axes-head { color: var(--muted); font-size: 10px; margin-bottom: 4px; }
+  .grid-cells { margin-left: 8px; }
+  .grid-cells.err { color: var(--red); }
+  #cmp-grid-axes-list { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+  .grid-axis-row { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; }
+  .grid-axis-hint { color: var(--muted); font-size: 10px; }
+  .grid-axis-row input[type=number] {
+    width: 46px; background: var(--panel); border: 1px solid var(--border);
+    color: var(--text); padding: 2px 4px; border-radius: 3px; font: inherit; font-size: 11px;
+  }
+  #cmp-grid-controls {
+    flex-shrink: 0; border-bottom: 1px solid var(--border);
+    padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+  }
+  #grid-hint { color: var(--muted); font-size: 10px; align-self: center; }
   #cmp-chart { flex: 1; min-height: 0; margin: 0 8px 8px; }
 </style>
 </head>
@@ -362,46 +479,56 @@
 
 <div id="hdr">
   <span class="logo"></span>
-  <button class="tab-btn active" id="tab-cfg" onclick="switchTab('cfg')">Configure</button>
-  <button class="tab-btn" id="tab-ses" onclick="switchTab('ses')">Session</button>
-  <button class="tab-btn" id="tab-cmp" onclick="switchTab('cmp')">Compare</button>
-  <span id="session-info"></span>
+  <button class="tab-btn active" id="tab-ses" onclick="switchTab('ses')">Single Policy Analysis</button>
+  <button class="tab-btn" id="tab-cmp" onclick="switchTab('cmp')">Multi-policy Analysis</button>
 </div>
 
-<!-- Configure pane -->
-<div class="pane" id="pane-cfg">
-  <div class="form-section">
-    <div class="form-group">
-      <label>Policy</label>
-      <div class="dropdown" id="run-dd">
-        <button type="button" class="dd-toggle" id="run-dd-toggle" onclick="toggleRunDD(event)">Loading…</button>
-        <div class="dd-panel" id="run-dd-panel"></div>
-      </div>
-      <input type="hidden" id="run-sel">
+<!-- New-analysis modal (was the Configure pane) -->
+<div class="modal-backdrop" id="modal-newanalysis" style="display:none"
+     onclick="onBackdrop(event, 'modal-newanalysis')">
+  <div class="modal-panel">
+    <div class="modal-head">
+      <span>New analysis</span>
+      <button class="modal-x" onclick="closeModal('modal-newanalysis')">✕</button>
     </div>
-    <div class="form-group">
-      <label>Checkpoint</label>
-      <select id="ckpt-sel">
-        <option value="latest">latest</option>
-      </select>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Deterministic rollouts</label>
-        <input type="number" id="n-det" value="3" min="0" max="20">
+    <div class="modal-body">
+      <div class="form-section">
+        <div class="form-group">
+          <label>Policy</label>
+          <div class="dropdown" id="run-dd">
+            <button type="button" class="dd-toggle" id="run-dd-toggle" onclick="toggleRunDD(event)">Loading…</button>
+            <div class="dd-panel" id="run-dd-panel"></div>
+          </div>
+          <input type="hidden" id="run-sel">
+        </div>
+        <div class="form-group">
+          <label>Checkpoint</label>
+          <select id="ckpt-sel">
+            <option value="latest">latest</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Deterministic rollouts</label>
+            <input type="number" id="n-det" value="3" min="0" max="20">
+          </div>
+          <div class="form-group">
+            <label>Stochastic rollouts</label>
+            <input type="number" id="n-sto" value="3" min="0" max="20">
+          </div>
+        </div>
+        <button id="run-btn" onclick="onRunClick()">▶ Run Analysis</button>
       </div>
-      <div class="form-group">
-        <label>Stochastic rollouts</label>
-        <input type="number" id="n-sto" value="3" min="0" max="20">
-      </div>
     </div>
-    <button id="run-btn" onclick="onRunClick()">▶ Run Analysis</button>
   </div>
 </div>
 
-<!-- Session pane -->
+<!-- Single Policy Analysis pane -->
 <div class="pane" id="pane-ses">
   <div id="ses-sidebar">
+    <div id="ses-sidebar-new">
+      <button class="new-btn" onclick="openModal('modal-newanalysis')">＋ New analysis</button>
+    </div>
     <div id="ses-sidebar-top">
       <select id="session-sel" onchange="onSessionChange()">
         <option value="">No sessions</option>
@@ -435,81 +562,163 @@
   </div>
 </div>
 
-<!-- Compare pane -->
-<div class="pane" id="pane-cmp">
+<!-- Multi-policy Analysis pane -->
+<div class="pane" id="pane-cmp" style="display:none">
   <div id="cmp-sidebar">
-    <div id="cmp-sidebar-top">
-      <span>Recent queues</span>
-      <span class="spacer"></span>
-      <button id="cmp-refresh" onclick="loadQueues(true)">↻</button>
+    <div id="ses-sidebar-new">
+      <button class="new-btn" onclick="openCollectModal()">＋ Collect new dataset</button>
     </div>
-    <div id="queue-search-wrap">
-      <input id="queue-search" type="search" placeholder="Search queues…"
-             oninput="onQueueSearch(this.value)">
-    </div>
-    <div id="queue-list"><div class="empty">Loading…</div></div>
+    <div id="dataset-list"><div class="empty">No datasets</div></div>
   </div>
   <div id="cmp-main">
     <div id="cmp-controls">
-      <div class="cmp-field">
-        <label>Mode</label>
-        <select id="cmp-mode">
-          <option value="det">deterministic</option>
-          <option value="sto">stochastic</option>
-        </select>
+      <div class="cmp-row">
+        <div class="cmp-field">
+          <label>Visualization</label>
+          <select id="cmp-viz" title="How to render the rollouts — independent of how they were gathered"
+                  onchange="onVisualizationChange()">
+            <option value="curves">success curves</option>
+            <option value="heatmap">heatmap</option>
+          </select>
+        </div>
+        <div class="cmp-field">
+          <label>Success channel</label>
+          <select id="cmp-channel" onchange="onScoringChange()"><option value="">—</option></select>
+        </div>
+        <span class="spacer" style="flex:1"></span>
+        <button id="cmp-dl" onclick="downloadCompareChart()" disabled>⬇ PNG</button>
+        <button id="cmp-dl-data" onclick="downloadCompareData()" disabled>⬇ CSV</button>
       </div>
-      <div class="cmp-field">
-        <label>Benchmark</label>
-        <select id="cmp-benchmark" title="Environment-config preset to evaluate against">
-          <option value="default">Default (training config)</option>
-        </select>
+      <details id="cmp-advanced">
+        <summary>Advanced</summary>
+        <div class="cmp-adv-row">
+          <div class="cmp-field chk">
+            <input type="checkbox" id="cmp-abs" onchange="onScoringChange()">
+            <label for="cmp-abs">abs</label>
+          </div>
+          <div class="cmp-field">
+            <label>Criterion</label>
+            <select id="cmp-smode" onchange="onSuccessModeChange(); onScoringChange()">
+              <option value="hold">error within thresh for hold steps</option>
+              <option value="average">avg rollout error below thresh</option>
+              <option value="average_above">mean success metric above thresh</option>
+            </select>
+          </div>
+          <div class="cmp-field" id="cmp-threshold-field" style="display:none">
+            <label>Threshold</label>
+            <input type="number" id="cmp-threshold" step="any" onchange="onScoringChange()">
+          </div>
+          <div class="cmp-field cmp-sweep-field">
+            <label>Sweep min</label>
+            <input type="number" id="cmp-smin" step="any" value="0" onchange="onScoringChange()">
+          </div>
+          <div class="cmp-field cmp-sweep-field">
+            <label>Sweep max</label>
+            <input type="number" id="cmp-smax" step="any" value="1" onchange="onScoringChange()">
+          </div>
+          <div class="cmp-field cmp-sweep-field">
+            <label>Points</label>
+            <input type="number" id="cmp-npts" value="151" min="2" max="501" onchange="onScoringChange()">
+          </div>
+          <div class="cmp-field" id="cmp-hold-field">
+            <label>Hold steps</label>
+            <input type="number" id="cmp-hold" value="10" min="1" onchange="onScoringChange()">
+          </div>
+          <div class="cmp-field" id="cmp-skip-field" style="display:none">
+            <label>Skip first (s)</label>
+            <input type="number" id="cmp-skip" step="any" value="0" min="0" onchange="onScoringChange()">
+          </div>
+        </div>
+      </details>
+    </div>
+    <div id="viz-bin-axes" style="display:none">
+      <div class="cmp-grid-axes-head">
+        <span>Bin axes</span>
+        <span id="viz-bin-cells" class="grid-cells"></span>
       </div>
-      <div class="cmp-field">
-        <label>Rollouts / seed</label>
-        <input type="number" id="cmp-nroll" value="50" min="1" max="512">
-      </div>
-      <div class="cmp-field">
-        <label>Success channel</label>
-        <select id="cmp-channel"><option value="">—</option></select>
-      </div>
-      <div class="cmp-field chk">
-        <input type="checkbox" id="cmp-abs">
-        <label for="cmp-abs">abs</label>
-      </div>
-      <div class="cmp-field">
-        <label>Criterion</label>
-        <select id="cmp-smode" onchange="onSuccessModeChange()">
-          <option value="hold">error within thresh for hold steps</option>
-          <option value="average">avg rollout error below thresh</option>
-          <option value="average_above">mean success metric above thresh</option>
-        </select>
-      </div>
-      <div class="cmp-field">
-        <label>Sweep min</label>
-        <input type="number" id="cmp-smin" step="any" value="0">
-      </div>
-      <div class="cmp-field">
-        <label>Sweep max</label>
-        <input type="number" id="cmp-smax" step="any" value="1">
-      </div>
-      <div class="cmp-field">
-        <label>Points</label>
-        <input type="number" id="cmp-npts" value="151" min="2" max="501">
-      </div>
-      <div class="cmp-field" id="cmp-hold-field">
-        <label>Hold steps</label>
-        <input type="number" id="cmp-hold" value="10" min="1">
-      </div>
-      <div class="cmp-field" id="cmp-skip-field" style="display:none">
-        <label>Skip first (s)</label>
-        <input type="number" id="cmp-skip" step="any" value="0" min="0">
-      </div>
-      <button id="cmp-gen" onclick="onGenerateCompare()">▶ Generate</button>
-      <button id="cmp-dl" onclick="downloadCompareChart()" disabled>⬇ PNG</button>
-      <button id="cmp-dl-data" onclick="downloadCompareData()" disabled>⬇ CSV</button>
+      <div id="viz-bin-axes-list"></div>
     </div>
     <div id="cmp-status"></div>
+    <div id="cmp-grid-controls" style="display:none">
+      <div class="cmp-field">
+        <label>X axis</label>
+        <select id="grid-x" onchange="onGridAxisChange('x')"></select>
+      </div>
+      <div class="cmp-field">
+        <label>Y axis</label>
+        <select id="grid-y" onchange="onGridAxisChange('y')"></select>
+      </div>
+      <span id="grid-hint"></span>
+    </div>
     <div id="cmp-chart"></div>
+  </div>
+</div>
+
+<!-- Collect-dataset modal -->
+<div class="modal-backdrop" id="modal-collect" style="display:none"
+     onclick="onBackdrop(event, 'modal-collect')">
+  <div class="modal-panel wide">
+    <div class="modal-head">
+      <span>Collect new dataset</span>
+      <button class="modal-x" onclick="closeModal('modal-collect')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="collect-cols">
+        <div id="collect-policies">
+          <div id="cmp-sidebar-top">
+            <span>Recent queues</span>
+            <span class="spacer"></span>
+            <button id="cmp-refresh" onclick="loadQueues(true)">↻</button>
+          </div>
+          <div id="queue-search-wrap">
+            <input id="queue-search" type="search" placeholder="Search queues…"
+                   oninput="onQueueSearch(this.value)">
+          </div>
+          <div id="queue-list"><div class="empty">Loading…</div></div>
+        </div>
+        <div id="collect-settings">
+          <div class="cmp-field">
+            <label>Dataset name</label>
+            <input type="text" id="col-name" placeholder="e.g. pinch-freq-sweep"
+                   oninput="updateColCollectEnabled()">
+          </div>
+          <div class="cmp-field">
+            <label>Benchmark</label>
+            <select id="col-benchmark" title="How rollouts are gathered (sampled preset or pinned grid)"
+                    onchange="onColBenchmarkChange()">
+              <option value="default">Default (training config)</option>
+            </select>
+          </div>
+          <div class="cmp-field">
+            <label>Mode</label>
+            <select id="col-mode">
+              <option value="sto">stochastic</option>
+              <option value="det">deterministic</option>
+            </select>
+          </div>
+          <div class="cmp-field" id="col-nroll-field">
+            <label>Rollouts / seed</label>
+            <input type="number" id="col-nroll" value="50" min="1" max="512">
+          </div>
+          <div class="cmp-field" id="col-grid-nroll-field" style="display:none"
+               title="Repeats per cell. A full sweep pins every swept quantity, so repeats only average over what stays random.">
+            <label>Rollouts / cell</label>
+            <input type="number" id="col-grid-nroll" value="64" min="1" max="512"
+                   onchange="updateColCells()">
+          </div>
+          <div id="col-grid-axes" style="display:none">
+            <div class="cmp-grid-axes-head">
+              <span>Sweep axes</span>
+              <span id="col-cells" class="grid-cells"></span>
+            </div>
+            <div id="col-grid-axes-list"></div>
+          </div>
+          <div id="col-status"></div>
+          <div id="col-progress"></div>
+          <button id="col-collect" onclick="onCollectDataset()">▶ Collect Evaluation Dataset</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -696,27 +905,34 @@ async function startTilePlayback(sid, r, tile) {
 
 // ── tab switching ─────────────────────────────────────────────────────────────
 function switchTab(tab) {
-  document.getElementById('tab-cfg').classList.toggle('active', tab === 'cfg');
   document.getElementById('tab-ses').classList.toggle('active', tab === 'ses');
   document.getElementById('tab-cmp').classList.toggle('active', tab === 'cmp');
-  document.getElementById('pane-cfg').style.display = tab === 'cfg' ? '' : 'none';
   document.getElementById('pane-ses').style.display = tab === 'ses' ? 'flex' : 'none';
   document.getElementById('pane-cmp').style.display = tab === 'cmp' ? 'flex' : 'none';
   if (tab === 'ses' && currentView === 'aggregate') {
     setTimeout(resizeAggregateCharts, 50);
   }
   if (tab === 'cmp') {
-    if (!queuesLoaded) loadQueues();
+    if (!datasetsLoaded) loadDatasets();
     setTimeout(resizeCompareChart, 50);
   }
 }
+
+// ── modals ──────────────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function onBackdrop(e, id) { if (e.target === e.currentTarget) closeModal(id); }
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  document.querySelectorAll('.modal-backdrop').forEach(m => { m.style.display = 'none'; });
+});
 
 // ── init ──────────────────────────────────────────────────────────────────────
 async function init() {
   // Read hash first so tab switch is immediate — don't wait on data fetches.
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
   const sid = hash.get('sid');
-  if (sid) switchTab('ses');
+  switchTab('ses');   // default to Single Policy Analysis (deep-links stay here too)
 
   await loadPolicies();
   await refreshSessionList();
@@ -836,6 +1052,7 @@ async function onRunClick() {
     });
     const {session_id} = await resp.json();
     rolloutData = {};
+    closeModal('modal-newanalysis');
     window.location.hash = `sid=${session_id}`;
     await refreshSessionList();
     await loadSession(session_id);
@@ -888,7 +1105,6 @@ async function onDeleteClick() {
   rolloutData = {};
   window.location.hash = '';
   resetSessionViews();
-  document.getElementById('session-info').textContent = '';
   document.getElementById('rollout-list').innerHTML = '<div class="empty">No rollouts</div>';
   renderAggregatePlots();
   await refreshSessionList();
@@ -914,8 +1130,6 @@ async function loadSession(sid) {
   if (!data) return;
   currentSession = data;
 
-  document.getElementById('session-info').textContent =
-    `${data.run.split('-').pop() || data.run}  ·  ${data.n_done}/${data.n_total} done`;
   document.getElementById('session-sel').value = sid;
 
   renderRolloutList(data);
@@ -951,8 +1165,6 @@ async function applySessionUpdate(data) {
   if (data.deleted) { stopStream(); return; }
 
   currentSession = data;
-  document.getElementById('session-info').textContent =
-    `${data.run.split('-').pop() || data.run}  ·  ${data.n_done}/${data.n_total} done`;
   renderRolloutList(data);
 
   const prevDone = Object.keys(rolloutData).length;
@@ -1268,6 +1480,12 @@ const cmpConfigCache = {};          // env_name -> /api/compare/config result
 const cmpBenchmarkCache = {};       // env_name -> /api/compare/benchmarks result
 let comparePollTimer = null;
 
+// ── datasets (multi-policy) ──
+let datasetsLoaded = false;
+let datasets = [];                  // list from /api/datasets
+let currentDataset = null;          // {name,slug,env,mode,benchmark,grid_spec,policies}
+let colCollecting = false;          // a collect job is in flight (disables Collect)
+
 function resizeCompareChart() {
   const el = document.getElementById('cmp-chart');
   if (el && el.data) { try { Plotly.Plots.resize(el); } catch (_) {} }
@@ -1322,12 +1540,18 @@ function queueGroup(q) {
     if (on) openQueues.add(q.queue); else openQueues.delete(q.queue);
   };
   const pinned = pinnedQueues.has(q.queue);
+  const bulk = queueSelectState(q);
   head.innerHTML =
     `<span class="qtwist">▸</span>` +
+    `<input type="checkbox" class="qcheck" ${bulk.all ? 'checked' : ''} ` +
+      `${bulk.targets.length ? '' : 'disabled'} title="${bulkTitle(bulk)}">` +
     `<span class="qname">${q.queue}</span>` +
     `<span class="qcount">${q.policies.length}</span>` +
     `<span class="qpin${pinned ? ' on' : ''}" title="${pinned ? 'Unpin' : 'Pin'}">${pinned ? '★' : '☆'}</span>`;
   head.querySelector('.qpin').onclick = (e) => { e.stopPropagation(); togglePinQueue(q.queue); };
+  const qcb = head.querySelector('.qcheck');
+  qcb.indeterminate = bulk.some && !bulk.all;   // partial selection (can't be set via markup)
+  qcb.onclick = (e) => { e.stopPropagation(); toggleQueueSelect(q, qcb.checked); };
   g.appendChild(head);
 
   const pols = document.createElement('div');
@@ -1422,6 +1646,15 @@ function policyRunNames(p) {
     .map(s => s.run_name);
 }
 
+function policyEntry(p) {
+  return {
+    label: p.label,
+    sensor_bundle: p.sensor_bundle,
+    env_name: p.env_name,
+    run_names: policyRunNames(p),
+  };
+}
+
 function togglePolicySelect(key, queue, p, on) {
   if (!on) {
     selectedPolicies.delete(key);
@@ -1431,17 +1664,57 @@ function togglePolicySelect(key, queue, p, on) {
       selectedPolicies.clear();
     }
     cmpEnv = p.env_name;
-    selectedPolicies.set(key, {
-      label: p.label,
-      sensor_bundle: p.sensor_bundle,
-      env_name: p.env_name,
-      run_names: policyRunNames(p),
-    });
+    selectedPolicies.set(key, policyEntry(p));
   }
+  afterSelectionChange();
+}
+
+// Policy selection lives in the collect modal now — re-sync its benchmark list,
+// grid sweep axes and Collect button after any selection change.
+function afterSelectionChange() {
   if (!selectedPolicies.size) cmpEnv = null;
   renderQueues();               // reflect selection / env reset across cards
-  if (cmpEnv) loadCompareConfig(cmpEnv);
-  updateGenEnabled();
+  if (cmpEnv) loadColBenchmarks(cmpEnv);
+  refreshColAxes();             // sweep-axis candidates depend on the selected run
+  updateColCollectEnabled();
+}
+
+// ── queue-level select-all ──────────────────────────────────────────────────
+// Since a selection must share one env, "all policies in this queue" means all
+// of its policies in one env: the env already being compared if the queue has
+// policies in it, else the env of the queue's first selectable policy.
+function queueTargetEnv(q) {
+  const selectable = q.policies.filter(p => policyRunNames(p).length);
+  if (cmpEnv && selectable.some(p => p.env_name === cmpEnv)) return cmpEnv;
+  return selectable.length ? selectable[0].env_name : null;
+}
+
+function queueSelectState(q) {
+  const env = queueTargetEnv(q);
+  const targets = q.policies.filter(p => p.env_name === env && policyRunNames(p).length);
+  const n = targets.filter(p => selectedPolicies.has(policyKey(q.queue, p))).length;
+  const envs = new Set(q.policies.filter(p => policyRunNames(p).length).map(p => p.env_name));
+  return {env, targets, some: n > 0, all: n > 0 && n === targets.length, mixed: envs.size > 1};
+}
+
+function bulkTitle(bulk) {
+  if (!bulk.targets.length) return 'No selectable policies in this queue';
+  const n = bulk.targets.length;
+  const what = bulk.mixed ? `${n} ${bulk.env} polic${n === 1 ? 'y' : 'ies'}` : 'all policies';
+  return bulk.all ? `Deselect ${what}` : `Select ${what} in this queue`;
+}
+
+function toggleQueueSelect(q, on) {
+  const {env, targets} = queueSelectState(q);
+  if (!targets.length) return;
+  if (on) {
+    if (cmpEnv && cmpEnv !== env) selectedPolicies.clear();
+    cmpEnv = env;
+    targets.forEach(p => selectedPolicies.set(policyKey(q.queue, p), policyEntry(p)));
+  } else {
+    targets.forEach(p => selectedPolicies.delete(policyKey(q.queue, p)));
+  }
+  afterSelectionChange();
 }
 
 // Include/exclude one seed. If the policy is selected, keep its run_names in
@@ -1454,38 +1727,18 @@ function toggleSeed(key, queue, p, run_name, on) {
     selectedPolicies.get(key).run_names = run_names;
   }
   renderQueues();
-  updateGenEnabled();
+  updateColCollectEnabled();
 }
 
-function updateGenEnabled() {
-  const btn = document.getElementById('cmp-gen');
-  const ch = document.getElementById('cmp-channel').value;
-  btn.disabled = selectedPolicies.size === 0 || !ch || comparePollTimer != null;
-  const st = document.getElementById('cmp-status');
-  if (!comparePollTimer) {
-    st.className = '';
-    st.textContent = selectedPolicies.size
-      ? `${selectedPolicies.size} polic${selectedPolicies.size === 1 ? 'y' : 'ies'} selected${cmpEnv ? ' · ' + cmpEnv : ''}`
-      : 'Select policies from one queue to compare.';
-  }
+const GRID_MAX_CELLS = 8192;        // mirrors server GRID_MAX_CELLS
+
+function representativeRun() {
+  const p = selectedPolicies.values().next().value;
+  return p && p.run_names && p.run_names[0];
 }
 
-async function loadCompareConfig(env) {
-  // Applying the per-env defaults overwrites the form (criterion, sweep bounds,
-  // …). Do it only when the env actually changes, so selecting/deselecting
-  // seeds within one env keeps the user's current edits.
-  if (env === appliedConfigEnv) return;
-  let cfg = cmpConfigCache[env];
-  if (!cfg) {
-    cfg = await fetch(`/api/compare/config?env=${encodeURIComponent(env)}`).then(r => r.json());
-    cmpConfigCache[env] = cfg;
-  }
-  applyCompareConfig(cfg);
-  await loadBenchmarks(env);
-  appliedConfigEnv = env;
-}
-
-async function loadBenchmarks(env) {
+// ── collect modal: benchmark + grid sweep-axis selector ──────────────────────
+async function loadColBenchmarks(env) {
   let list = cmpBenchmarkCache[env];
   if (!list) {
     try {
@@ -1494,12 +1747,236 @@ async function loadBenchmarks(env) {
     if (!list || !list.length) list = [{name: 'default', label: 'Default (training config)'}];
     cmpBenchmarkCache[env] = list;
   }
-  const sel = document.getElementById('cmp-benchmark');
+  const sel = document.getElementById('col-benchmark');
   const prev = sel.value;
   sel.innerHTML = list
     .map(b => `<option value="${b.name}" title="${(b.description || '').replace(/"/g, '&quot;')}">${b.label}</option>`)
     .join('');
   sel.value = list.some(b => b.name === prev) ? prev : (list[0] ? list[0].name : 'default');
+  onColBenchmarkChange();
+}
+
+function colIsGrid() { return document.getElementById('col-benchmark').value === 'grid'; }
+
+function onColBenchmarkChange() {
+  const grid = colIsGrid();
+  document.getElementById('col-nroll-field').style.display = grid ? 'none' : '';
+  document.getElementById('col-grid-nroll-field').style.display = grid ? '' : 'none';
+  refreshColAxes();
+  updateColCollectEnabled();
+}
+
+let colCands = [];
+const colSel = {};                  // name -> {checked, points}
+
+async function refreshColAxes() {
+  const box = document.getElementById('col-grid-axes');
+  const run = representativeRun();
+  if (!colIsGrid() || !selectedPolicies.size || !cmpEnv || !run) { box.style.display = 'none'; return; }
+  let cands = [];
+  try {
+    cands = await fetch(
+      `/api/compare/grid_axes?run=${encodeURIComponent(run)}&env=${encodeURIComponent(cmpEnv)}`
+    ).then(r => r.json());
+  } catch (_) { cands = []; }
+  colCands = Array.isArray(cands) ? cands : [];
+  renderColAxes();
+  updateColCollectEnabled();
+}
+
+function renderColAxes() {
+  const box = document.getElementById('col-grid-axes');
+  const list = document.getElementById('col-grid-axes-list');
+  box.style.display = '';
+  if (!colCands.length) {
+    list.innerHTML = '<span class="grid-axis-hint">No sweepable axes for this run.</span>';
+    document.getElementById('col-cells').textContent = '';
+    return;
+  }
+  const names = new Set(colCands.map(c => c.name));
+  Object.keys(colSel).forEach(k => { if (!names.has(k)) delete colSel[k]; });
+  list.innerHTML = colCands.map(c => {
+    if (!(c.name in colSel)) colSel[c.name] = {checked: true, points: c.default_points};
+    const s = colSel[c.name];
+    const hint = `[${(+c.lo).toPrecision(3)}, ${(+c.hi).toPrecision(3)}]${c.kind === 'model' ? ' · model' : ''}`;
+    return `<label class="grid-axis-row">
+      <input type="checkbox" ${s.checked ? 'checked' : ''}
+             onchange="onColAxisToggle('${c.name}', this.checked)">
+      <span>${c.label}</span>
+      <span class="grid-axis-hint">${hint}</span>
+      <input type="number" min="2" max="64" value="${s.points}"
+             onchange="onColAxisPoints('${c.name}', this.value)" title="points on this axis">
+    </label>`;
+  }).join('');
+  updateColCells();
+}
+function onColAxisToggle(name, on) {
+  if (colSel[name]) colSel[name].checked = on;
+  updateColCells(); updateColCollectEnabled();
+}
+function onColAxisPoints(name, v) {
+  if (colSel[name]) colSel[name].points = Math.max(2, parseInt(v) || 8);
+  updateColCells(); updateColCollectEnabled();
+}
+function selectedColAxes() {
+  return colCands
+    .filter(c => colSel[c.name] && colSel[c.name].checked)
+    .map(c => ({name: c.name, points: colSel[c.name].points}));
+}
+function gridCellCount(sel) { return sel.reduce((a, x) => a * Math.max(1, x.points), 1); }
+function updateColCells() {
+  const el = document.getElementById('col-cells');
+  const sel = selectedColAxes();
+  if (!sel.length) { el.textContent = 'no axes selected'; el.className = 'grid-cells err'; return; }
+  const cells = gridCellCount(sel);
+  const nroll = parseInt(document.getElementById('col-grid-nroll').value) || 64;
+  const over = cells > GRID_MAX_CELLS;
+  el.textContent = `${cells} cells × ${nroll} rollouts${over ? `  ⚠ exceeds ${GRID_MAX_CELLS}` : ''}`;
+  el.className = 'grid-cells' + (over ? ' err' : '');
+}
+
+function updateColCollectEnabled() {
+  const btn = document.getElementById('col-collect');
+  if (!btn) return;
+  let axesOk = true;
+  if (colIsGrid()) {
+    const sel = selectedColAxes();
+    axesOk = sel.length > 0 && gridCellCount(sel) <= GRID_MAX_CELLS;
+  }
+  const name = document.getElementById('col-name').value.trim();
+  btn.disabled = selectedPolicies.size === 0 || !name || !axesOk || colCollecting;
+  const st = document.getElementById('col-status');
+  if (!colCollecting) {
+    st.className = '';
+    st.textContent = selectedPolicies.size
+      ? `${selectedPolicies.size} polic${selectedPolicies.size === 1 ? 'y' : 'ies'}${cmpEnv ? ' · ' + cmpEnv : ''}`
+      : 'Select policies to include.';
+  }
+}
+
+// ── visualization (drives off the selected dataset) ──────────────────────────
+function isHeatmap() { return document.getElementById('cmp-viz').value === 'heatmap'; }
+function datasetIsGrid() { return !!(currentDataset && currentDataset.benchmark === 'grid'); }
+
+// Scoring-field visibility follows the visualization: curves sweep a threshold on
+// x; a heatmap judges at a single Threshold.
+function syncVizFields() {
+  const heat = isHeatmap();
+  document.getElementById('cmp-threshold-field').style.display = heat ? '' : 'none';
+  document.querySelectorAll('.cmp-sweep-field').forEach(
+    el => { el.style.display = heat ? 'none' : ''; });
+}
+
+async function onVisualizationChange() {
+  syncVizFields();
+  await refreshBinAxes();   // ensure sampled bin-axis candidates are loaded
+  if (currentDataset && lastCompareResult) viewScore();
+}
+
+// Load the env's default channel/criterion into the viz form when a dataset is
+// selected (only when the env changes, to preserve the user's tweaks).
+async function loadVizConfig(env) {
+  if (env === appliedConfigEnv) return;
+  let cfg = cmpConfigCache[env];
+  if (!cfg) {
+    cfg = await fetch(`/api/compare/config?env=${encodeURIComponent(env)}`).then(r => r.json());
+    cmpConfigCache[env] = cfg;
+  }
+  applyCompareConfig(cfg);
+  appliedConfigEnv = env;
+}
+
+// Bin centers for a sampled-heatmap axis, mirroring grid_collect._gen_values so
+// sampled bins line up with grid cells (geometric for log2, sign-mirror for
+// symmetric, dropped duplicate endpoint for a full-circle wrap).
+function genAxisCenters(c, n) {
+  const lo = +c.lo, hi = +c.hi;
+  let vals;
+  if (c.space === 'log2') {
+    vals = Array.from({length: n}, (_, i) => n === 1 ? lo : lo * Math.pow(hi / lo, i / (n - 1)));
+  } else {
+    const full = c.wrap && Math.abs((hi - lo) - 2 * Math.PI) < 1e-9;
+    const denom = full ? n : (n - 1);
+    vals = Array.from({length: n}, (_, i) => n === 1 ? lo : lo + (hi - lo) * i / denom);
+  }
+  if (c.symmetric) {
+    const s = new Set();
+    vals.forEach(v => { s.add(-v); s.add(v); });
+    vals = [...s].sort((a, b) => a - b);
+  }
+  return vals;
+}
+
+// ── visualization: sampled BIN axis selector (post-hoc, live re-bin) ─────────
+let binCands = [];
+const binSel = {};
+
+async function refreshBinAxes() {
+  const box = document.getElementById('viz-bin-axes');
+  const run = currentDataset && currentDataset.policies && currentDataset.policies[0]
+    && currentDataset.policies[0].run_names && currentDataset.policies[0].run_names[0];
+  if (!(currentDataset && isHeatmap() && !datasetIsGrid()) || !run) { box.style.display = 'none'; return; }
+  let cands = [];
+  try {
+    cands = await fetch(
+      `/api/compare/grid_axes?run=${encodeURIComponent(run)}&env=${encodeURIComponent(currentDataset.env)}`
+    ).then(r => r.json());
+  } catch (_) { cands = []; }
+  binCands = (Array.isArray(cands) ? cands : []).filter(c => c.channel);
+  renderBinAxes();
+}
+
+function renderBinAxes() {
+  const box = document.getElementById('viz-bin-axes');
+  const list = document.getElementById('viz-bin-axes-list');
+  box.style.display = '';
+  if (!binCands.length) {
+    list.innerHTML = '<span class="grid-axis-hint">No bin-able axes for this dataset.</span>';
+    document.getElementById('viz-bin-cells').textContent = '';
+    return;
+  }
+  const names = new Set(binCands.map(c => c.name));
+  Object.keys(binSel).forEach(k => { if (!names.has(k)) delete binSel[k]; });
+  list.innerHTML = binCands.map(c => {
+    if (!(c.name in binSel)) binSel[c.name] = {checked: true, points: c.default_points};
+    const s = binSel[c.name];
+    const hint = `[${(+c.lo).toPrecision(3)}, ${(+c.hi).toPrecision(3)}]`;
+    return `<label class="grid-axis-row">
+      <input type="checkbox" ${s.checked ? 'checked' : ''}
+             onchange="onBinAxisToggle('${c.name}', this.checked)">
+      <span>${c.label}</span>
+      <span class="grid-axis-hint">${hint}</span>
+      <input type="number" min="2" max="64" value="${s.points}"
+             onchange="onBinAxisPoints('${c.name}', this.value)" title="bins on this axis">
+    </label>`;
+  }).join('');
+  updateBinCells();
+}
+function onBinAxisToggle(name, on) {
+  if (binSel[name]) binSel[name].checked = on;
+  updateBinCells();
+  if (currentDataset && lastCompareResult) viewScore();
+}
+function onBinAxisPoints(name, v) {
+  if (binSel[name]) binSel[name].points = Math.max(2, parseInt(v) || 8);
+  updateBinCells();
+  if (currentDataset && lastCompareResult) viewScore();
+}
+function selectedBinAxes() {
+  return binCands
+    .filter(c => c.channel && binSel[c.name] && binSel[c.name].checked)
+    .map(c => ({
+      name: c.name, label: c.label, channel: c.channel,
+      channel_scale: c.channel_scale != null ? c.channel_scale : 1.0,
+      values: genAxisCenters(c, binSel[c.name].points),
+    }));
+}
+function updateBinCells() {
+  const el = document.getElementById('viz-bin-cells');
+  const sel = binCands.filter(c => binSel[c.name] && binSel[c.name].checked);
+  const cells = sel.reduce((a, c) => a * Math.max(1, binSel[c.name].points), 1);
+  el.textContent = sel.length ? `${cells} bins` : 'no bin axes selected';
+  el.className = 'grid-cells' + (sel.length ? '' : ' err');
 }
 
 function applyCompareConfig(cfg) {
@@ -1522,9 +1999,13 @@ function applyCompareConfig(cfg) {
   document.getElementById('cmp-skip').value = cfg.skip_first != null ? cfg.skip_first : 0;
   document.getElementById('cmp-smode').value = cfg.success_mode || 'hold';
   onSuccessModeChange();   // show the field that matches the criterion
+  // Grid's single Threshold: default to the env's reference value, else the
+  // sweep midpoint (the same value compute_grid_heatmap would fall back to).
+  document.getElementById('cmp-threshold').value = cfg.ref_value != null
+    ? cfg.ref_value
+    : 0.5 * ((parseFloat(cfg.sweep_min) || 0) + (parseFloat(cfg.sweep_max) || 0));
   // Stash non-edited config (units/labels/ref) for the POST + plot.
   document.getElementById('cmp-controls').dataset.cfg = JSON.stringify(cfg);
-  updateGenEnabled();
 }
 
 // Show only the parameter relevant to the chosen success criterion: hold-steps
@@ -1553,10 +2034,14 @@ async function openRunAnalysis(run_name) {
 
 function buildCriterion() {
   const base = JSON.parse(document.getElementById('cmp-controls').dataset.cfg || '{}');
-  return {
+  const thrRaw = document.getElementById('cmp-threshold').value;
+  const crit = {
     ...base,
     channel: document.getElementById('cmp-channel').value,
     abs: document.getElementById('cmp-abs').checked,
+    // Heatmap's single judging threshold; null lets the server fall back to
+    // ref_value / midpoint. Ignored by the curve path (it sweeps instead).
+    threshold: thrRaw === '' ? null : parseFloat(thrRaw),
     sweep_min: parseFloat(document.getElementById('cmp-smin').value),
     sweep_max: parseFloat(document.getElementById('cmp-smax').value),
     n_points: parseInt(document.getElementById('cmp-npts').value) || 151,
@@ -1564,73 +2049,237 @@ function buildCriterion() {
     hold_steps: parseInt(document.getElementById('cmp-hold').value) || 10,
     skip_first: parseFloat(document.getElementById('cmp-skip').value) || 0,
   };
+  // Sampled heatmap: how to bin the pool. Grid heatmaps ignore this (they use
+  // the cache's pinned cell_values); curves ignore it entirely.
+  if (isHeatmap() && !datasetIsGrid()) crit.heatmap_axes = selectedBinAxes();
+  return crit;
 }
 
-async function onGenerateCompare() {
-  if (!selectedPolicies.size) return;
-  const mode = document.getElementById('cmp-mode').value;
-  const benchmark = document.getElementById('cmp-benchmark').value || 'default';
-  const n_rollouts = parseInt(document.getElementById('cmp-nroll').value) || 50;
-  const criterion = buildCriterion();
-  if (!criterion.channel) return;
+// Any scoring / visualization / bin-axis change re-renders the selected dataset
+// from cache (no GPU, no re-collect) — the whole point of saved datasets.
+function onScoringChange() {
+  if (currentDataset) viewScore();
+}
 
+async function viewScore() {
+  if (!currentDataset) return;
+  const criterion = buildCriterion();
+  const st = document.getElementById('cmp-status');
+  if (!criterion.channel) { st.className = ''; st.textContent = 'Pick a success channel.'; return; }
+  st.className = ''; st.textContent = 'Rendering…';
+  try {
+    const data = await fetch('/api/compare/view', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        mode: currentDataset.mode, benchmark: currentDataset.benchmark,
+        visualization: document.getElementById('cmp-viz').value,
+        criterion, policies: currentDataset.policies, grid_spec: currentDataset.grid_spec,
+      }),
+    }).then(r => r.json());
+    if (data && data.result) {
+      st.className = ''; st.textContent = 'Done.';
+      renderCompareChart(data.result);
+    } else {
+      st.className = 'err';
+      if (data && data.error === 'not collected') {
+        const d = datasets.find(x => x.slug === currentDataset.slug);
+        st.textContent = d && d.seeds_total
+          ? `Dataset still collecting — ${d.seeds_done}/${d.seeds_total} seeds done; renders automatically when complete.`
+          : 'Dataset still collecting — renders automatically when complete.';
+      } else {
+        st.textContent = 'Re-view failed.';
+      }
+    }
+  } catch (_) {
+    st.className = 'err'; st.textContent = 'Re-view failed.';
+  }
+}
+
+// ── dataset sidebar ──────────────────────────────────────────────────────────
+async function loadDatasets() {
+  datasetsLoaded = true;
+  const wasCollecting = new Set(
+    datasets.filter(d => d.status === 'collecting').map(d => d.slug));
+  try { datasets = await fetch('/api/datasets').then(r => r.json()); } catch (_) { datasets = []; }
+  if (!Array.isArray(datasets)) datasets = [];
+  renderDatasetList();
+  // A dataset that just finished while selected: render it without a click.
+  if (currentDataset && wasCollecting.has(currentDataset.slug)
+      && datasets.some(d => d.slug === currentDataset.slug && d.status === 'ready')) {
+    viewScore();
+  }
+  ensureDatasetPolling();
+}
+
+// Refresh the sidebar while anything is collecting, so seed counts stay live
+// even with the collect modal closed or after a page reload mid-collection.
+let datasetPollTimer = null;
+function ensureDatasetPolling() {
+  const collecting = datasets.some(d => d.status === 'collecting');
+  if (collecting && !datasetPollTimer) {
+    datasetPollTimer = setInterval(loadDatasets, 3000);
+  } else if (!collecting && datasetPollTimer) {
+    clearInterval(datasetPollTimer); datasetPollTimer = null;
+  }
+}
+
+// "collecting 3/6" while running, plain status otherwise.
+function datasetStatusText(d) {
+  return d.status === 'collecting' && d.seeds_total
+    ? `collecting ${d.seeds_done}/${d.seeds_total} seeds`
+    : d.status;
+}
+
+function renderDatasetList() {
+  const el = document.getElementById('dataset-list');
+  if (!datasets.length) {
+    el.innerHTML = '<div class="empty">No datasets yet — click ＋ Collect new dataset.</div>';
+    return;
+  }
+  el.innerHTML = datasets.map(d => `
+    <div class="dataset-item ${currentDataset && currentDataset.slug === d.slug ? 'sel' : ''}"
+         onclick="selectDataset('${d.slug}')">
+      <span class="ds-dot ${d.status}" title="${datasetStatusText(d)}"></span>
+      <div class="ds-body">
+        <div class="ds-name" title="${d.name}">${d.name}</div>
+        <div class="ds-meta">${d.benchmark} · ${d.n_policies} polic${d.n_policies === 1 ? 'y' : 'ies'} · ${datasetStatusText(d)}</div>
+      </div>
+      <button class="ds-del" title="Delete dataset"
+              onclick="event.stopPropagation(); onDeleteDataset('${d.slug}')">🗑</button>
+    </div>`).join('');
+}
+
+async function selectDataset(slug) {
+  let meta;
+  try { meta = await fetch(`/api/datasets/${encodeURIComponent(slug)}`).then(r => r.json()); }
+  catch (_) { return; }
+  if (!meta || !meta.slug) return;
+  currentDataset = meta;
+  renderDatasetList();
+  await loadVizConfig(meta.env);   // channel / criterion defaults for this env
+  syncVizFields();
+  await refreshBinAxes();
+  viewScore();
+}
+
+async function onDeleteDataset(slug) {
+  try { await fetch(`/api/datasets/${encodeURIComponent(slug)}`, {method: 'DELETE'}); } catch (_) {}
+  if (currentDataset && currentDataset.slug === slug) {
+    currentDataset = null;
+    Plotly.purge('cmp-chart');
+    document.getElementById('cmp-grid-controls').style.display = 'none';
+    document.getElementById('viz-bin-axes').style.display = 'none';
+    const st = document.getElementById('cmp-status'); st.className = ''; st.textContent = 'Select a dataset to visualize.';
+  }
+  await loadDatasets();
+}
+
+// ── collect modal ────────────────────────────────────────────────────────────
+function openCollectModal() {
+  openModal('modal-collect');
+  if (!queuesLoaded) loadQueues();
+  updateColCollectEnabled();
+}
+
+async function onCollectDataset() {
+  const name = document.getElementById('col-name').value.trim();
+  if (!name || !selectedPolicies.size) return;
+  const benchmark = document.getElementById('col-benchmark').value || 'default';
+  const mode = document.getElementById('col-mode').value;
   const policies = [...selectedPolicies.values()].map(p => ({
     label: p.label, sensor_bundle: p.sensor_bundle, run_names: p.run_names,
   }));
-
-  const resp = await fetch('/api/compare', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({mode, benchmark, n_rollouts, criterion, policies}),
-  });
-  const {compare_id} = await resp.json();
-  pollCompare(compare_id);
+  const body = {
+    name, env: cmpEnv, mode, benchmark, policies,
+    n_rollouts: parseInt(document.getElementById('col-nroll').value) || 50,
+  };
+  if (colIsGrid()) {
+    const sel = selectedColAxes();
+    if (!sel.length) return;
+    body.grid_spec = {axes: sel};
+    body.grid_n_rollouts = parseInt(document.getElementById('col-grid-nroll').value) || 64;
+  }
+  colCollecting = true; updateColCollectEnabled();
+  const st = document.getElementById('col-status');
+  st.className = ''; st.textContent = 'Starting collection…';
+  renderSeedProgress([]);           // clear any previous run's rows
+  let data;
+  try {
+    data = await fetch('/api/datasets', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
+    }).then(r => r.json());
+  } catch (_) { data = {error: 'request failed'}; }
+  if (!data || data.error) {
+    colCollecting = false; st.className = 'err';
+    st.textContent = (data && data.error) || 'Collection failed'; updateColCollectEnabled();
+    return;
+  }
+  await loadDatasets();     // show the new dataset (collecting) right away
+  pollCollect(data.compare_id, data.dataset);
 }
 
-function pollCompare(cid) {
-  if (comparePollTimer) clearInterval(comparePollTimer);
-  const st = document.getElementById('cmp-status');
-  updateGenEnabled();   // disables Generate while running
+// One row per seed: which are done, which is on a GPU right now (with sub-seed
+// cell progress for grids), which are still queued, which failed.
+const SEED_STATE_TEXT = {ready: 'done', queued: 'queued', error: 'failed'};
+
+function renderSeedProgress(runs) {
+  const box = document.getElementById('col-progress');
+  if (!runs || !runs.length) { box.className = ''; box.innerHTML = ''; return; }
+  box.className = 'on';
+  box.innerHTML = runs.map(r => {
+    let state = SEED_STATE_TEXT[r.status] || r.status;
+    if (r.status === 'running') {
+      state = r.progress ? `running · ${r.progress}` : 'running';
+      if (r.gpu !== undefined && r.gpu !== null) state += ` · GPU ${r.gpu}`;
+    }
+    const title = r.status === 'error' && r.error ? r.error : `${r.policy || ''} ${r.run_name}`.trim();
+    return `
+      <div class="seed-row ${r.status}" title="${String(title).replace(/"/g, '&quot;')}">
+        <span class="seed-dot ${r.status}"></span>
+        <span class="seed-name">${r.run_name}</span>
+        <span class="seed-state">${state}</span>
+      </div>`;
+  }).join('');
+}
+
+function pollCollect(cid, slug) {
+  const st = document.getElementById('col-status');
   const tick = async () => {
     let data;
-    try {
-      data = await fetch(`/api/compare/${cid}?t=${Date.now()}`)
-        .then(r => (r.ok ? r.json() : null));
-    }
-    catch (_) { return; }  // transient network error — keep polling
+    try { data = await fetch(`/api/compare/${cid}?t=${Date.now()}`).then(r => (r.ok ? r.json() : null)); }
+    catch (_) { return; }
     if (!data || !data.status) {
-      // 404/500 or malformed: the job is gone (e.g. server restart lost it).
-      // Without this the timer never clears and Generate stays disabled.
-      clearInterval(comparePollTimer); comparePollTimer = null;
-      st.className = 'err';
-      st.textContent = 'Compare job lost (server restarted?) — hit Generate again.';
-      updateGenEnabled();
-      return;
+      clearInterval(timer); colCollecting = false;
+      st.className = 'err'; st.textContent = 'Collection job lost (server restart?).';
+      updateColCollectEnabled(); return;
     }
+    renderSeedProgress(data.runs);
     if (data.status === 'ready') {
-      clearInterval(comparePollTimer); comparePollTimer = null;
-      st.className = ''; st.textContent = 'Done.';
-      renderCompareChart(data.result);
-      updateGenEnabled();
+      clearInterval(timer); colCollecting = false;
+      st.className = '';
+      st.textContent = `Done — ${data.seeds_total}/${data.seeds_total} seeds collected.`;
+      updateColCollectEnabled();
+      await loadDatasets();
+      closeModal('modal-collect');
+      selectDataset(slug);
       return;
     }
     const runs = data.runs || [];
     const running = runs.filter(r => r.status === 'running').length;
-    const ready = runs.filter(r => r.status === 'ready').length;
+    const queued = runs.filter(r => r.status === 'queued').length;
     const errored = runs.filter(r => r.status === 'error');
     st.className = errored.length ? 'err' : '';
-    let msg = `Collecting rollouts — ${ready}/${runs.length} cached, ${running} running…`;
+    let msg = `Collecting — ${data.seeds_done}/${data.seeds_total} seeds done`
+            + `  ·  ${running} running  ·  ${queued} queued`;
     if (errored.length) msg += `  ·  ${errored.length} failed: ${errored[0].error ? errored[0].error.slice(0, 80) : ''}`;
     st.textContent = msg;
-    if (!running && errored.length) {
-      // Terminal: nothing running or queued and at least one run failed — the
-      // server will keep reporting "collecting" forever, so stop here and
-      // re-enable Generate (retry requeues only the failed runs).
-      clearInterval(comparePollTimer); comparePollTimer = null;
-      updateGenEnabled();
+    // Keep the sidebar count live too — the modal may be closed while this runs.
+    loadDatasets();
+    if (!running && !queued && errored.length) {
+      clearInterval(timer); colCollecting = false; updateColCollectEnabled();
     }
   };
-  comparePollTimer = setInterval(tick, 1500);
+  const timer = setInterval(tick, 1500);
   tick();
 }
 
@@ -1667,6 +2316,7 @@ function csvCell(v) {
 // single-seed policies (no band).
 function downloadCompareData() {
   const result = lastCompareResult;
+  if (result && result.kind === 'grid_heatmap') { downloadGridData(result); return; }
   if (!result || !result.x || !result.x.length) return;
   const x = result.x;
   const header = [result.xlabel || 'threshold'];
@@ -1688,8 +2338,37 @@ function downloadCompareData() {
   URL.revokeObjectURL(url);
 }
 
+// Long-format CSV of the currently-shown grid pivot: one row per
+// (x, y, policy) cell, for the chosen axis pair and metric.
+function downloadGridData(result) {
+  const xi = parseInt(document.getElementById('grid-x').value);
+  const ySelVal = document.getElementById('grid-y').value;
+  const yi = ySelVal === GRID_NONE ? -1 : parseInt(ySelVal);
+  const axes = result.axes;
+  const xvals = axes[xi].values;
+  const yvals = yi < 0 ? [''] : axes[yi].values;
+  const header = [axes[xi].name, yi < 0 ? '' : axes[yi].name, 'policy', 'success', 'mean'];
+  const rows = [header.map(csvCell).join(',')];
+  result.policies.forEach(p => {
+    const zs = pivotGrid(p, xi, yi, 'success');
+    const zm = pivotGrid(p, xi, yi, 'mean');
+    for (let r = 0; r < yvals.length; r++)
+      for (let c = 0; c < xvals.length; c++)
+        rows.push([xvals[c], yvals[r], p.label, zs[r][c], zm[r][c]].map(csvCell).join(','));
+  });
+  const blob = new Blob([rows.join('\n') + '\n'], {type: 'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${cmpDownloadName()}_grid.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function renderCompareChart(result) {
   lastCompareResult = result;
+  if (result && result.kind === 'grid_heatmap') { setupGridHeatmap(result); return; }
+  document.getElementById('cmp-grid-controls').style.display = 'none';
   const x = result.x;
   // X-axis spans the actual swept range so changing sweep_min/sweep_max and
   // regenerating rescales the axis with the data, rather than leaving it pinned
@@ -1765,6 +2444,176 @@ function renderCompareChart(result) {
       return true;  // keep Plotly's default toggle on the clicked line
     });
   }
+  setTimeout(resizeCompareChart, 0);
+}
+
+// ── grid heatmap ─────────────────────────────────────────────────────────────
+// The grid benchmark ships a per-cell metric over the full randomization grid
+// (all axes). The viz is pivoted client-side so choosing a different axis pair
+// is instant — no re-collect, no server round-trip.
+const GRID_NONE = '__none__';   // Y-axis "(none)" → single-row heatmap
+let gridSel = {x: null, y: null};
+
+function setupGridHeatmap(result) {
+  const axes = result.axes || [];
+  const xSel = document.getElementById('grid-x');
+  const ySel = document.getElementById('grid-y');
+  const axOpts = axes.map((a, i) => `<option value="${i}">${a.label}</option>`).join('');
+  xSel.innerHTML = axOpts;
+  ySel.innerHTML = `<option value="${GRID_NONE}">(none)</option>` + axOpts;
+
+  // Keep the user's picks across regenerates when still valid, else default to
+  // the first two axes (grid_collect orders episode axes first, so X=primary).
+  const names = axes.map(a => a.name);
+  let xi = names.indexOf(gridSel.x);
+  if (xi < 0) xi = 0;
+  let yiName = gridSel.y;
+  let yi = names.indexOf(yiName);
+  if (yiName !== GRID_NONE && yi < 0) yi = axes.length > 1 ? (xi === 0 ? 1 : 0) : -1;
+  xSel.value = String(xi);
+  ySel.value = yi < 0 ? GRID_NONE : String(yi);
+
+  document.getElementById('cmp-grid-controls').style.display = 'flex';
+  renderGridHeatmap();
+}
+
+// Enforce distinct X/Y (a heatmap axis against itself is meaningless): if the
+// user picks the axis already on the other dropdown, swap them.
+function onGridAxisChange(which) {
+  const xSel = document.getElementById('grid-x');
+  const ySel = document.getElementById('grid-y');
+  if (ySel.value !== GRID_NONE && ySel.value === xSel.value) {
+    if (which === 'x') ySel.value = gridSel.xIdx != null ? String(gridSel.xIdx) : GRID_NONE;
+    else xSel.value = gridSel.yIdx != null ? String(gridSel.yIdx) : xSel.value;
+  }
+  renderGridHeatmap();
+}
+
+// Marginalize: average the per-cell metric over every axis except (xi, yi).
+// yi < 0 collapses to a single row (only an X axis chosen).
+function pivotGrid(policy, xi, yi, metricKey) {
+  const metric = policy[metricKey], ci = policy.cell_index;
+  const nx = gridAxisLen(xi), ny = yi < 0 ? 1 : gridAxisLen(yi);
+  const sum = Array.from({length: ny}, () => new Float64Array(nx));
+  const cnt = Array.from({length: ny}, () => new Float64Array(nx));
+  for (let c = 0; c < metric.length; c++) {
+    if (metric[c] == null) continue;   // empty sampled bin — don't poison the mean
+    const ix = ci[c][xi], iy = yi < 0 ? 0 : ci[c][yi];
+    sum[iy][ix] += metric[c]; cnt[iy][ix] += 1;
+  }
+  return sum.map((row, r) =>
+    Array.from(row, (v, cc) => (cnt[r][cc] ? v / cnt[r][cc] : null)));
+}
+
+function gridAxisLen(i) {
+  return lastCompareResult.axes[i].values.length;
+}
+
+function renderGridHeatmap() {
+  const result = lastCompareResult;
+  if (!result || result.kind !== 'grid_heatmap') return;
+  const axes = result.axes;
+  const xi = parseInt(document.getElementById('grid-x').value);
+  const ySelVal = document.getElementById('grid-y').value;
+  const yi = ySelVal === GRID_NONE ? -1 : parseInt(ySelVal);
+  gridSel = {x: axes[xi].name, y: yi < 0 ? GRID_NONE : axes[yi].name,
+             xIdx: xi, yIdx: yi < 0 ? null : yi};
+
+  // The heatmap always colours by success rate for the selected channel; the
+  // channel-mean travels along in the tooltip (customdata) instead of a
+  // separate metric dropdown.
+  const metrics = result.metrics || [];
+  const metricDef = metrics.find(m => m.key === 'success')
+    || {label: 'success rate (%)', zmin: 0, zmax: 100};
+  const meanLabel = (metrics.find(m => m.key === 'mean') || {}).label || 'mean';
+  const pols = result.policies || [];
+  if (!pols.length) {
+    Plotly.purge('cmp-chart');
+    document.getElementById('cmp-chart').innerHTML =
+      '<div class="empty" style="padding:20px;color:var(--muted)">No grid data.</div>';
+    return;
+  }
+
+  const xvals = axes[xi].values;
+  const yvals = yi < 0 ? [axes[xi].label] : axes[yi].values;
+  const zByPolicy = pols.map(p => pivotGrid(p, xi, yi, 'success'));
+  const meanByPolicy = pols.map(p => pivotGrid(p, xi, yi, 'mean'));
+
+  // Shared colour range so subplots are comparable. Success is fixed 0–100;
+  // an open-ended metric (mean) is scaled to the data across all policies.
+  let zmin = metricDef.zmin, zmax = metricDef.zmax;
+  if (zmin == null || zmax == null) {
+    let lo = Infinity, hi = -Infinity;
+    zByPolicy.forEach(z => z.forEach(row => row.forEach(v => {
+      if (v == null) return; if (v < lo) lo = v; if (v > hi) hi = v;
+    })));
+    if (lo === Infinity) { lo = 0; hi = 1; }
+    zmin = zmin == null ? lo : zmin;
+    zmax = zmax == null ? hi : zmax;
+  }
+
+  const cols = Math.min(pols.length, 3);
+  const rows = Math.ceil(pols.length / cols);
+  const xTitle = axes[xi].label;
+  const yTitle = yi < 0 ? '' : axes[yi].label;
+  const traces = [], annotations = [];
+  pols.forEach((p, i) => {
+    const n = i + 1;                       // Plotly axis suffix (x/y, x2/y2, …)
+    const ax = n === 1 ? '' : String(n);
+    traces.push({
+      type: 'heatmap', z: zByPolicy[i], x: xvals, y: yvals,
+      customdata: meanByPolicy[i],
+      xaxis: 'x' + n, yaxis: 'y' + n,
+      zmin, zmax, colorscale: 'Viridis', zsmooth: false,
+      xgap: 1, ygap: 1,
+      showscale: i === pols.length - 1,
+      colorbar: {title: {text: metricDef.label, side: 'right', font: {size: 10}},
+                 thickness: 12, len: 0.9, tickfont: {size: 9}},
+      hovertemplate:
+        `${xTitle}: %{x}<br>` +
+        (yi < 0 ? '' : `${yTitle}: %{y}<br>`) +
+        `${metricDef.label}: %{z:.3g}<br>` +
+        `${meanLabel}: %{customdata:.3g}<extra></extra>`,
+    });
+    annotations.push({
+      text: `${p.label} (n=${p.n_seeds})`,
+      xref: 'x' + n + ' domain', yref: 'y' + n + ' domain',
+      x: 0.5, y: 1.0, yanchor: 'bottom', showarrow: false,
+      font: {size: 10, color: '#e5e7eb'},
+    });
+  });
+
+  const thrNote = result.channel
+    ? `${result.channel} · thr ${(+result.threshold).toPrecision(3)}`
+    : '';
+  const layout = {
+    ...basePlotLayout(`Grid — ${metricDef.label}${thrNote ? '  ·  ' + thrNote : ''}`),
+    grid: {rows, columns: cols, pattern: 'independent', xgap: 0.12, ygap: 0.2},
+    margin: {l: 55, r: 20, t: 40, b: 48},
+    showlegend: false,
+    annotations,
+  };
+  // Per-subplot axis titles (only the outer edges, to keep it uncluttered).
+  pols.forEach((p, i) => {
+    const n = i + 1;
+    const col = i % cols, row = Math.floor(i / cols);
+    layout['xaxis' + (n === 1 ? '' : n)] = {
+      title: {text: row === rows - 1 ? xTitle : '', font: {size: 10}},
+      gridcolor: '#374151', tickfont: {size: 9}, zeroline: false,
+    };
+    layout['yaxis' + (n === 1 ? '' : n)] = {
+      title: {text: col === 0 && yi >= 0 ? yTitle : '', font: {size: 10}},
+      gridcolor: '#374151', tickfont: {size: 9}, zeroline: false,
+      showticklabels: yi >= 0,
+    };
+  });
+
+  Plotly.react('cmp-chart', traces, layout, plotCfg);
+  document.getElementById('cmp-dl').disabled = false;
+  document.getElementById('cmp-dl-data').disabled = false;
+  const g = document.getElementById('grid-hint');
+  const extra = axes.filter((_, k) => k !== xi && (yi < 0 || k !== yi));
+  g.textContent = extra.length ? 'averaged over ' + extra.map(a => a.name).join(', ') : '';
   setTimeout(resizeCompareChart, 0);
 }
 
