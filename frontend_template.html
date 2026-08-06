@@ -129,9 +129,13 @@
       const ckptRaw = (m.checkpoint || '').replace(/\\/g, '/').split('/').pop() || '?';
       const ckptNum = parseInt(ckptRaw, 10);
       const ckptLabel = Number.isNaN(ckptNum) ? ckptRaw : String(ckptNum);
+      // A pinned rollout is one grid cell: say which, or the page is just
+      // "seed 1" and the episode it actually ran is invisible.
+      const pins = Object.entries(m.params || {})
+        .map(([k, v]) => tag(k + '=' + (+v).toPrecision(4))).join('');
       document.getElementById('title').innerHTML =
         tag(m.env_name) + tag(m.sensor_bundle) + tag('checkpoint: ' + ckptLabel) +
-        tag('T=' + m.T) + tag('dt=' + m.dt + 's');
+        tag('T=' + m.T) + tag('dt=' + m.dt + 's') + pins;
     }
 
     // Show first frame immediately while the rest load
@@ -142,6 +146,11 @@
     slider.addEventListener('input', onSlider);
 
     const right = document.getElementById('right');
+
+    if (D.tracking && Array.isArray(D.tracking.target) && Array.isArray(D.tracking.achieved)) {
+      sectionLabel(right, 'Tracking');
+      buildTrackingChart(right);
+    }
 
     sectionLabel(right, 'Inputs');
     D.input_groups.forEach((g, gi) => buildInputGroup(right, g, gi));
@@ -254,6 +263,63 @@
     el.className = 'section-label';
     el.textContent = text;
     container.appendChild(el);
+  }
+
+  // ── tracking chart ─────────────────────────────────────────────────────────
+  // Achieved vs. target for a scalar setpoint this task tracks (e.g. cube pinch
+  // force), with the ±tolerance success band shaded around the target. This is a
+  // per-rollout view: the setpoint is sampled fresh each episode, so it only
+  // makes sense against the one episode's own target — not an average.
+
+  function buildTrackingChart(container) {
+    const tk = D.tracking;
+    const tArr = Array.from({ length: D.meta.T }, (_, i) => i * D.meta.dt);
+    const tol = +tk.tolerance || 0;
+    const unit = tk.units ? ' (' + tk.units + ')' : '';
+
+    const details = document.createElement('details');
+    details.open = true;
+    const summary = document.createElement('summary');
+    summary.textContent = (tk.label || 'tracking') + unit + '  — achieved vs target';
+    details.appendChild(summary);
+
+    const content = document.createElement('div');
+    content.className = 'group-content';
+    const divId = 'tracking-chart';
+    const div = makeChartDiv(divId);
+    content.appendChild(div);
+    details.appendChild(content);
+    container.appendChild(details);
+
+    const traces = [];
+    if (tol > 0) {
+      // Shaded ±tolerance region around the (time-varying) target.
+      traces.push({
+        x: tArr.concat(tArr.slice().reverse()),
+        y: tk.target.map(v => v + tol).concat(tk.target.map(v => v - tol).reverse()),
+        fill: 'toself', fillcolor: withAlpha('#9ca3af', 0.15),
+        line: { color: 'transparent' }, type: 'scatter', mode: 'none',
+        name: '±' + tol + ' tolerance', hoverinfo: 'skip', showlegend: true,
+      });
+    }
+    // Target setpoint (dashed) and what the policy actually achieved (solid).
+    traces.push({
+      x: tArr, y: tk.target, name: 'target', type: 'scatter', mode: 'lines',
+      line: { color: '#9ca3af', width: 1.5, dash: 'dash' },
+    });
+    traces.push({
+      x: tArr, y: tk.achieved, name: 'achieved', type: 'scatter', mode: 'lines',
+      line: { color: COLORS[2], width: 1.6 },
+    });
+
+    BASE_SHAPES[divId] = [];
+    Plotly.newPlot(divId, traces, chartLayout((tk.label || 'tracking') + unit, []), cfg());
+    div.addEventListener('mousedown', e => onChartMouseDown(e, div), { capture: true });
+    div.on('plotly_legenddoubleclick', () => false);
+
+    details.addEventListener('toggle', () => {
+      if (details.open) Plotly.Plots.resize(div);
+    });
   }
 
   // ── input group builder ────────────────────────────────────────────────────

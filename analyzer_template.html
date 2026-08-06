@@ -135,60 +135,85 @@
   #col-collect:hover:not(:disabled) { background: #1d4ed8; }
   #col-collect:disabled { background: var(--border); color: var(--muted); cursor: default; }
 
-  /* ── configure pane ── */
-  #pane-cfg {
-    flex-direction: column; padding: 28px 40px; overflow-y: auto;
+  /* ── policy picker (new-analysis modal) ── */
+  #new-cols { display: flex; gap: 16px; }
+  #pick-panel {
+    width: 470px; flex-shrink: 0; display: flex; flex-direction: column;
+    max-height: 68vh; border: 1px solid var(--border); border-radius: 4px; overflow: hidden;
   }
-  .form-section { max-width: 440px; }
-  .form-group { margin-bottom: 14px; }
-  .form-group label {
-    display: block; color: var(--muted); font-size: 11px; margin-bottom: 4px;
+  #pick-tasks {
+    display: flex; flex-wrap: wrap; gap: 4px; padding: 7px 8px; flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
   }
-  .form-group select, .form-group input[type=number] {
-    width: 100%; background: var(--panel); border: 1px solid var(--border);
-    color: var(--text); padding: 6px 8px; border-radius: 4px; font: inherit;
-    appearance: auto;
+  .task-btn {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 3px;
+    color: var(--muted); cursor: pointer; font: inherit; font-size: 11px; padding: 3px 9px;
+  }
+  .task-btn:hover { color: var(--text); border-color: var(--muted); }
+  .task-btn.on { border-color: var(--accent); color: var(--text); background: var(--panel); }
+  .task-btn .task-n { color: var(--muted); margin-left: 5px; font-size: 10px; }
+  #pick-search-wrap { padding: 6px 8px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  #pick-search {
+    width: 100%; background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    padding: 5px 7px; border-radius: 3px; font: inherit; font-size: 11px;
+  }
+  #pick-search::placeholder { color: var(--muted); }
+  #pick-sort {
+    display: flex; align-items: center; gap: 4px; margin-top: 5px;
+    color: var(--muted); font-size: 10px;
+  }
+  .pick-perf { color: var(--text); }
+  .pick-perf .warn { color: var(--yellow); }
+  .pick-perf .bad { color: var(--red); }
+  #pick-facets {
+    flex-shrink: 0; max-height: 20vh; overflow-y: auto; padding: 6px 8px;
+    border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px;
+  }
+  .facet-row { display: flex; align-items: baseline; gap: 6px; font-size: 10px; }
+  /* Dotted config keys are told apart by their tail (…scales.joint_vel), so the
+     ellipsis has to eat the head — which is what rtl direction does here. */
+  .facet-name {
+    color: var(--muted); flex-shrink: 0; width: 116px;
+    direction: rtl; text-align: left;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .facet-vals { display: flex; flex-wrap: wrap; gap: 3px; }
+  .pol-chip.dead { opacity: .35; }   /* no policy left once the other filters apply */
+  .pick-hint { color: var(--muted); font-size: 10px; }
+  #pick-list { flex: 1; overflow-y: auto; padding: 4px; min-height: 140px; }
+  .pick-item {
+    padding: 4px 7px; border-radius: 3px; cursor: pointer; border: 1px solid transparent;
+  }
+  .pick-item:hover { background: var(--bg); }
+  .pick-item.cursor { border-color: var(--muted); background: var(--bg); }
+  .pick-item.sel { border-color: var(--accent); background: var(--bg); }
+  .pick-name { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pick-meta {
+    color: var(--muted); font-size: 10px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #pick-count {
+    flex-shrink: 0; border-top: 1px solid var(--border);
+    padding: 4px 8px; color: var(--muted); font-size: 10px;
+  }
+  #new-settings { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 12px; }
+  #new-settings select, #new-settings input[type=number] {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 5px 7px; border-radius: 3px; font: inherit; font-size: 12px;
+  }
+  #pick-current {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 3px;
+    padding: 6px 8px; font-size: 11px; word-break: break-all;
+  }
+  #pick-current.none { color: var(--muted); }
+  #pick-current .cur-attrs {
+    color: var(--muted); font-size: 10px; margin-top: 4px; word-break: normal;
   }
   .form-row { display: flex; gap: 12px; }
-  .form-row .form-group { flex: 1; }
-
-  /* collapsible policy dropdown */
-  .dropdown { position: relative; }
-  .dd-toggle {
-    width: 100%; text-align: left; background: var(--panel);
-    border: 1px solid var(--border); color: var(--text);
-    padding: 6px 8px; border-radius: 4px; font: inherit; cursor: pointer;
-  }
-  .dd-toggle::after { content: '▾'; float: right; color: var(--muted); }
-  .dd-panel {
-    display: none; position: absolute; z-index: 20; top: 100%; left: 0; right: 0;
-    margin-top: 2px; max-height: 320px; overflow-y: auto;
-    background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
-    box-shadow: 0 4px 12px rgba(0,0,0,.4);
-  }
-  .dropdown.open .dd-panel { display: block; }
-  .dd-group > summary {
-    list-style: none; cursor: pointer; padding: 6px 8px;
-    color: var(--muted); font-size: 11px; font-weight: 600;
-    border-top: 1px solid var(--border); user-select: none;
-  }
-  .dd-group:first-child > summary { border-top: none; }
-  .dd-group > summary::-webkit-details-marker { display: none; }
-  .dd-group > summary::before { content: '▸ '; }
-  .dd-group[open] > summary::before { content: '▾ '; }
-  .dd-group > summary:hover { color: var(--text); }
-  .dd-opt {
-    padding: 5px 8px 5px 20px; cursor: pointer; font-size: 12px;
-  }
-  .dd-opt:hover { background: var(--border); }
-  .dd-opt.sel { color: var(--accent, #2563eb); }
-  #run-btn {
-    background: #2563eb; color: #fff; border: none;
-    padding: 8px 22px; border-radius: 4px; cursor: pointer; font: inherit;
-    margin-top: 6px;
-  }
-  #run-btn:hover:not(:disabled) { background: #1d4ed8; }
-  #run-btn:disabled { background: var(--border); color: var(--muted); cursor: default; }
+  .form-row .cmp-field { flex: 1; }
+  #sw-axes-list { display: flex; flex-direction: column; gap: 3px; max-height: 24vh; overflow-y: auto; }
+  #sw-status { font-size: 11px; color: var(--muted); min-height: 14px; }
+  #sw-status.err { color: var(--red); }
 
   /* ── session pane ── */
   #pane-ses {
@@ -229,6 +254,16 @@
   .ritem.error   { color: var(--red); }
   .ritem .rname  { flex: 1; }
   .ritem .rtag   { font-size: 10px; color: var(--muted); }
+  .rparams {
+    font-size: 10px; color: var(--muted); padding: 0 6px 3px 20px;
+    word-break: break-word;
+  }
+  #roll-filter {
+    width: 100%; background: var(--panel); border: 1px solid var(--border);
+    color: var(--text); padding: 3px 6px; border-radius: 3px; font: inherit;
+    font-size: 10px; margin-bottom: 4px;
+  }
+  .roll-count { font-size: 10px; color: var(--muted); padding: 0 2px 4px; }
 
   /* ── aggregate content ── */
   #ses-main {
@@ -284,6 +319,25 @@
   }
   #view-rollout { padding: 0; }
   #rollout-frame { flex: 1; width: 100%; border: none; background: var(--bg); }
+  #rollout-params {
+    flex-shrink: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 11px;
+  }
+  #rollout-params .rp-name { color: var(--text); }
+  #rollout-params .rp-pin { color: var(--muted); font-size: 10px; }
+  #rollout-params .rp-pin b { color: var(--text); font-weight: normal; margin-left: 4px; }
+
+  /* ── rollout table (which rollout is which) ── */
+  #rollout-table { margin: 2px 0 6px; overflow-x: auto; }
+  .rtable { border-collapse: collapse; font-size: 12px; }
+  .rtable th, .rtable td { padding: 3px 12px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .rtable th { color: var(--muted); font-weight: normal; }
+  .rtable th:first-child, .rtable td.rt-name { text-align: left; }
+  .rtable a { color: var(--blue); text-decoration: none; }
+  .rtable a:hover { text-decoration: underline; }
+  .rtable .rt-ext { color: var(--muted); margin-left: 5px; }
+  .rtable tr.rt-pending { opacity: .45; }
+  .rtable .rt-dim { color: var(--muted); }
 
   /* ── video grid (top of the Aggregate view) ── */
   #video-grid {
@@ -453,6 +507,10 @@
   }
   #cmp-dl:disabled, #cmp-dl-data:disabled { color: var(--muted); cursor: default; }
   #cmp-status { flex-shrink: 0; padding: 6px 12px; font-size: 11px; color: var(--muted); min-height: 0; }
+  .cmp-placeholder {
+    display: flex; align-items: center; justify-content: center; height: 100%;
+    color: var(--muted); font-size: 12px;
+  }
   #cmp-status.err { color: var(--red); }
   #cmp-grid-axes {
     flex-shrink: 0; border-bottom: 1px solid var(--border); padding: 6px 12px 8px;
@@ -467,12 +525,47 @@
     width: 46px; background: var(--panel); border: 1px solid var(--border);
     color: var(--text); padding: 2px 4px; border-radius: 3px; font: inherit; font-size: 11px;
   }
+  /* ── policy subset selector ── */
+  #cmp-policies {
+    flex-shrink: 0; border-bottom: 1px solid var(--border); padding: 6px 12px 8px;
+  }
+  .pol-bulk {
+    background: none; border: 1px solid var(--border); border-radius: 3px;
+    color: var(--muted); cursor: pointer; font: inherit; font-size: 10px;
+    padding: 1px 6px; margin-left: 6px; line-height: 1.4;
+  }
+  .pol-bulk:hover { color: var(--text); border-color: var(--muted); }
+  #cmp-policy-attrs { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 5px; }
+  .pol-attr { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; }
+  .pol-attr > span { color: var(--muted); }
+  .pol-chip {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--muted); cursor: pointer; font: inherit; font-size: 10px; padding: 1px 8px;
+  }
+  .pol-chip:hover { border-color: var(--muted); }
+  .pol-chip.on { border-color: var(--accent); color: var(--text); }
+  .pol-chip.mixed { border-color: var(--accent); color: var(--muted); border-style: dashed; }
+  #cmp-policy-list {
+    display: flex; flex-wrap: wrap; gap: 2px 16px; max-height: 22vh; overflow-y: auto;
+  }
+  .pol-caret { cursor: pointer; user-select: none; }
+  .pol-caret::before { content: '▾ '; }
+  #cmp-policies.pol-collapsed .pol-caret::before { content: '▸ '; }
+  #cmp-policies.pol-collapsed #cmp-policy-list { display: none; }
+  .pol-row { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; }
+  .pol-row input { margin: 0; cursor: pointer; }
+
   #cmp-grid-controls {
     flex-shrink: 0; border-bottom: 1px solid var(--border);
     padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
   }
   #grid-hint { color: var(--muted); font-size: 10px; align-self: center; }
-  #cmp-chart { flex: 1; min-height: 0; margin: 0 8px 8px; }
+  .cmp-field select:disabled { color: var(--muted); opacity: .55; cursor: default; }
+  #grid-summary { align-self: center; margin-left: 0; padding: 4px 10px; }
+  /* Page chips for the policy axes on neither X/Y nor a facet — own line. */
+  #grid-pages { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  #grid-pages:empty { display: none; }
+  #cmp-chart { flex: 1; min-height: 0; margin: 0 8px 8px; overflow-y: auto; overflow-x: hidden; }
 </style>
 </head>
 <body>
@@ -486,38 +579,61 @@
 <!-- New-analysis modal (was the Configure pane) -->
 <div class="modal-backdrop" id="modal-newanalysis" style="display:none"
      onclick="onBackdrop(event, 'modal-newanalysis')">
-  <div class="modal-panel">
+  <div class="modal-panel wide">
     <div class="modal-head">
       <span>New analysis</span>
       <button class="modal-x" onclick="closeModal('modal-newanalysis')">✕</button>
     </div>
     <div class="modal-body">
-      <div class="form-section">
-        <div class="form-group">
-          <label>Policy</label>
-          <div class="dropdown" id="run-dd">
-            <button type="button" class="dd-toggle" id="run-dd-toggle" onclick="toggleRunDD(event)">Loading…</button>
-            <div class="dd-panel" id="run-dd-panel"></div>
+      <div id="new-cols">
+        <div id="pick-panel">
+          <div id="pick-tasks"></div>
+          <div id="pick-search-wrap">
+            <input id="pick-search" type="search" autocomplete="off"
+                   placeholder="Search — name, finger_kp=8, kv>=0.2, perf.success>0.5, -weld"
+                   oninput="onPickSearch(this.value)" onkeydown="onPickKey(event)">
+            <div id="pick-sort">
+              <span>sort</span>
+              <button class="pol-chip on" data-sort="recent">newest</button>
+              <button class="pol-chip" data-sort="perf.success">success</button>
+              <button class="pol-chip" data-sort="perf.reward">reward</button>
+            </div>
           </div>
-          <input type="hidden" id="run-sel">
+          <div id="pick-facets"></div>
+          <div id="pick-list"><div class="empty">Loading…</div></div>
+          <div id="pick-count"></div>
         </div>
-        <div class="form-group">
-          <label>Checkpoint</label>
-          <select id="ckpt-sel">
-            <option value="latest">latest</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Deterministic rollouts</label>
-            <input type="number" id="n-det" value="3" min="0" max="20">
+        <div id="new-settings">
+          <div class="cmp-field">
+            <label>Selected policy</label>
+            <div id="pick-current" class="none">— none —</div>
+            <input type="hidden" id="run-sel">
           </div>
-          <div class="form-group">
-            <label>Stochastic rollouts</label>
-            <input type="number" id="n-sto" value="3" min="0" max="20">
+          <div class="cmp-field">
+            <label>Checkpoint</label>
+            <select id="ckpt-sel">
+              <option value="latest">latest</option>
+            </select>
           </div>
+          <div class="form-row">
+            <div class="cmp-field" title="Deterministic rollouts per cell">
+              <label>Deterministic</label>
+              <input type="number" id="n-det" value="3" min="0" max="20" oninput="updateSweepCells()">
+            </div>
+            <div class="cmp-field" title="Stochastic rollouts per cell">
+              <label>Stochastic</label>
+              <input type="number" id="n-sto" value="3" min="0" max="20" oninput="updateSweepCells()">
+            </div>
+          </div>
+          <div class="cmp-grid-axes-head"
+               title="Tick an axis to pin it: every combination becomes its own rollout, with that quantity held at a known value instead of sampled.">
+            <span>Pin axes (optional)</span>
+            <span id="sw-cells" class="grid-cells"></span>
+          </div>
+          <div id="sw-axes-list"></div>
+          <div id="sw-status"></div>
+          <button id="run-btn" onclick="onRunClick()" disabled>▶ Run Analysis</button>
         </div>
-        <button id="run-btn" onclick="onRunClick()">▶ Run Analysis</button>
       </div>
     </div>
   </div>
@@ -527,13 +643,14 @@
 <div class="pane" id="pane-ses">
   <div id="ses-sidebar">
     <div id="ses-sidebar-new">
-      <button class="new-btn" onclick="openModal('modal-newanalysis')">＋ New analysis</button>
+      <button class="new-btn" onclick="openNewAnalysis()">＋ New analysis</button>
     </div>
     <div id="ses-sidebar-top">
-      <select id="session-sel" onchange="onSessionChange()">
-        <option value="">No sessions</option>
+      <select id="session-sel" onchange="onSessionChange()"
+              title="Analyses started since the server came up — they are not kept across restarts">
+        <option value="">No analyses yet</option>
       </select>
-      <button id="del-btn" title="Delete session" onclick="onDeleteClick()">🗑</button>
+      <button id="del-btn" title="Discard this analysis" onclick="onDeleteClick()">🗑</button>
     </div>
     <div id="rollout-list"><div class="empty">No rollouts</div></div>
     <div id="session-tags"></div>
@@ -548,6 +665,7 @@
       <div class="empty" id="agg-empty">Start a session to see aggregate stats.</div>
       <div id="video-grid"></div>
       <div id="stat-bar" style="display:none"></div>
+      <div id="rollout-table" style="display:none"></div>
       <div class="agg-row" style="display:none" id="reward-row">
         <div class="agg-chart" id="reward-chart"></div>
       </div>
@@ -557,6 +675,7 @@
     </div>
 
     <div class="view" id="view-rollout" style="display:none">
+      <div id="rollout-params" style="display:none"></div>
       <iframe id="rollout-frame" title="rollout analysis"></iframe>
     </div>
   </div>
@@ -586,6 +705,8 @@
           <select id="cmp-channel" onchange="onScoringChange()"><option value="">—</option></select>
         </div>
         <span class="spacer" style="flex:1"></span>
+        <button id="cmp-gen" onclick="viewScore()" disabled
+                title="Render the selected dataset with the current settings">▶ Generate Plot</button>
         <button id="cmp-dl" onclick="downloadCompareChart()" disabled>⬇ PNG</button>
         <button id="cmp-dl-data" onclick="downloadCompareData()" disabled>⬇ CSV</button>
       </div>
@@ -631,6 +752,17 @@
         </div>
       </details>
     </div>
+    <div id="cmp-policies" style="display:none">
+      <div class="cmp-grid-axes-head">
+        <span class="pol-caret" onclick="togglePolicyList()"
+              title="Show/hide the policy list">Policies</span>
+        <span id="cmp-pol-count" class="grid-cells"></span>
+        <button class="pol-bulk" onclick="setAllPolicies(true)">all</button>
+        <button class="pol-bulk" onclick="setAllPolicies(false)">none</button>
+      </div>
+      <div id="cmp-policy-attrs"></div>
+      <div id="cmp-policy-list"></div>
+    </div>
     <div id="viz-bin-axes" style="display:none">
       <div class="cmp-grid-axes-head">
         <span>Bin axes</span>
@@ -648,7 +780,25 @@
         <label>Y axis</label>
         <select id="grid-y" onchange="onGridAxisChange('y')"></select>
       </div>
+      <div class="cmp-field">
+        <label>Facet cols</label>
+        <select id="grid-fcol" title="Policy knob laid out left-to-right, one panel column per value"
+                onchange="onFacetChange('col')"></select>
+      </div>
+      <div class="cmp-field">
+        <label>Facet rows</label>
+        <select id="grid-frow" title="Policy knob laid out top-to-bottom, one panel row per value"
+                onchange="onFacetChange('row')"></select>
+      </div>
+      <div class="cmp-field">
+        <label>Reference</label>
+        <select id="grid-ref" title="Show every panel as its difference from this one"
+                onchange="onGridRefChange()"></select>
+      </div>
+      <button id="grid-summary" class="pol-bulk" onclick="toggleSummary()"
+              title="Collapse the randomization grid to one cell per policy setting"></button>
       <span id="grid-hint"></span>
+      <div id="grid-pages"></div>
     </div>
     <div id="cmp-chart"></div>
   </div>
@@ -788,6 +938,16 @@ function openRollout(name) {
   const btn = document.getElementById('view-btn-rollout');
   btn.style.display = '';
   btn.textContent = name;
+  // The embedded page hides its own header, so the parameters this episode was
+  // pinned at are stated here, above it.
+  const r = (currentSession.rollouts || []).find(x => x.name === name);
+  const pins = Object.entries((r && r.params) || {});
+  const bar = document.getElementById('rollout-params');
+  bar.innerHTML = pins.length
+    ? `<span class="rp-name">${name}</span>` + pins.map(
+        ([k, v]) => `<span class="rp-pin">${k}<b>${(+v).toPrecision(4)}</b></span>`).join('')
+    : '';
+  bar.style.display = pins.length ? 'flex' : 'none';
   const frame = document.getElementById('rollout-frame');
   const src = `/sessions/${currentSession.session_id}/${name}/`;
   if (frame.getAttribute('src') !== src) frame.setAttribute('src', src);
@@ -825,11 +985,49 @@ function orderedRollouts(rollouts) {
     .map(x => x.r);
 }
 
+// Axis name → short display label for the rollout table header.
+function prettyAxis(name) {
+  return ({
+    force_frequency: 'freq (Hz)',
+    force_amplitude_scale: 'amp scale',
+    force_phase: 'phase (rad)',
+    cube_size: 'cube size',
+  })[name] || name;
+}
+
+// Table mapping each rollout to the axis values it was pinned at, with links to
+// the individual rollout view (in-page) and the standalone page (new tab).
+// Hidden when the session pinned nothing (axes == []), i.e. sampled rollouts.
+function renderRolloutTable(rollouts, sid) {
+  const el = document.getElementById('rollout-table');
+  if (!el) return;
+  const axes = (currentSession && currentSession.axes) || [];
+  if (!rollouts.length || !axes.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const axisNames = axes.map(a => a.name);
+  const head = ['rollout', ...axisNames.map(prettyAxis), 'status'];
+  const body = rollouts.map(r => {
+    const cols = axisNames.map(n => {
+      const v = r.params ? r.params[n] : undefined;
+      return `<td>${v == null ? '—' : (+v).toPrecision(3)}</td>`;
+    }).join('');
+    const done = r.status === 'done';
+    const nameCell = done
+      ? `<a href="#" onclick="openRollout('${r.name}');return false;">${r.name}</a>`
+        + `<a class="rt-ext" href="/sessions/${sid}/${r.name}/" target="_blank" rel="noopener" title="open in new tab">↗</a>`
+      : `<span class="rt-dim">${r.name}</span>`;
+    const st = done ? '✓' : (r.status === 'error' ? 'failed' : (STATUS_TEXT[r.status] || r.status));
+    return `<tr class="${done ? '' : 'rt-pending'}"><td class="rt-name">${nameCell}</td>${cols}<td>${st}</td></tr>`;
+  }).join('');
+  el.innerHTML = `<table class="rtable"><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
+  el.style.display = '';
+}
+
 function renderVideoGrid() {
   if (!currentSession) return;
   const grid = document.getElementById('video-grid');
   const sid = currentSession.session_id;
   const rollouts = orderedRollouts(currentSession.rollouts);
+  renderRolloutTable(rollouts, sid);
 
   if (rollouts.length === 0) {
     destroyVideoAnims();
@@ -913,7 +1111,9 @@ function switchTab(tab) {
     setTimeout(resizeAggregateCharts, 50);
   }
   if (tab === 'cmp') {
-    if (!datasetsLoaded) loadDatasets();
+    // First visit of the session: reopen on the dataset last worked on, so the
+    // tab comes back where it was left rather than on an empty pane.
+    if (!datasetsLoaded) loadDatasets().then(restoreLastDataset);
     setTimeout(resizeCompareChart, 50);
   }
 }
@@ -959,64 +1159,419 @@ window.addEventListener('hashchange', async () => {
   startStream();
 });
 
-// ── configure tab ─────────────────────────────────────────────────────────────
-function policyLabel(name) {
-  // Show suffix if present (last dash-segment when it contains underscore)
-  const parts = name.split('-');
-  const suffix = parts[parts.length - 1];
-  return suffix.includes('_') ? `${name.substring(0, name.lastIndexOf('-' + suffix))}  [${suffix}]` : name;
+// ── policy picker (new-analysis modal) ────────────────────────────────────────
+// Roughly a thousand runs live under logs/, so picking one is a search problem,
+// not a menu problem. Three filters compose, and the matching runs are always on
+// screen — there is no collapsed state to open:
+//   • task buttons     — one env at a time (or all of them)
+//   • facet chips      — the config knobs that task actually varied (kp, kv,
+//                        sensor bundle…), straight from each run's config.json
+//   • the search box   — free text over the run name plus `key=value` terms
+// Everything is matched against strings the server already sent, so filtering is
+// a local array scan; no round-trip per keystroke.
+
+let allPolicies = [];      // [{name, env, n_checkpoints, attrs}] newest run first
+let policyFacets = {};     // env -> [{name, label, values, numeric}]
+let pickTask = '';         // selected env; '' = every task
+let pickTerms = [];        // parsed search terms
+const pickFilters = {};    // attr name -> Set of chosen value strings
+let pickMatches = [];      // policies passing task + chips + search
+let pickCursor = 0;        // keyboard highlight, index into pickMatches
+let pickSort = 'recent';   // 'recent' | a perf attr to rank by, descending
+
+const PICK_MAX_ROWS = 400; // past this, narrowing beats scrolling
+const PICK_META_ATTRS = 5; // config knobs spelled out per row
+
+function runParts(name) {
+  const m = name.match(/^(.*?)-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\d{2}(?:-(.*))?$/);
+  if (!m) return {stamp: '', when: '', tag: name};
+  return {
+    stamp: name.slice(m[1].length + 1, m[1].length + 16),
+    when: `${m[2]}-${m[3]}-${m[4]} ${m[5]}:${m[6]}`,
+    tag: m[7] || '',
+  };
+}
+
+// Attr values are compared as strings on both sides — the server sends them as
+// JSON numbers, strings or bools, and String() lines all three up with the value
+// text on a facet chip.
+function attrText(v) { return v == null ? '' : String(v); }
+function attrOf(p, name) { return attrText((p.attrs || {})[name]); }
+
+// Per-policy search index, built once: the haystack a bare term scans and the
+// (key, value) pairs a `key=value` term tests.
+function indexPolicy(p) {
+  const entries = Object.entries(p.attrs || {});
+  p._pairs = entries.map(([k, v]) => [k.toLowerCase(), attrText(v).toLowerCase(),
+                                      typeof v === 'number' ? v : NaN]);
+  p._hay = [p.name, ...entries.map(([k, v]) => `${k}=${attrText(v)}`)]
+    .join(' ').toLowerCase();
+  return p;
+}
+
+// Terms are whitespace-separated and all must hold; `-term` negates. A term with
+// an operator tests one config knob — the key matches any attr whose dotted name
+// contains it, so `kp` finds `pid_gains.finger_kp`. `=` is exact (numerically
+// when both sides are numbers, so `kv=0` won't swallow 0.2), `:` is substring,
+// and `> < >= <=` compare numerically. A bare term is a substring of the run name
+// or of any `key=value`.
+function parseQuery(q) {
+  return q.trim().split(/\s+/).filter(Boolean).map(raw => {
+    const neg = raw[0] === '-';
+    const body = (neg ? raw.slice(1) : raw).toLowerCase();
+    const m = body.match(/^([\w.]+)(>=|<=|=|:|>|<)(.*)$/);
+    if (m) return {neg, key: m[1], op: m[2], val: m[3]};
+    return body ? {neg, text: body} : null;
+  }).filter(Boolean);
+}
+
+function termHit(p, t) {
+  if (t.text !== undefined) return p._hay.includes(t.text);
+  const want = parseFloat(t.val);
+  return p._pairs.some(([key, val, num]) => {
+    if (!key.includes(t.key)) return false;
+    if (t.op === ':') return val.includes(t.val);
+    if (t.op === '=') {
+      return (isFinite(num) && isFinite(want)) ? num === want : val === t.val;
+    }
+    if (!isFinite(num) || !isFinite(want)) return false;
+    return t.op === '>' ? num > want : t.op === '<' ? num < want
+         : t.op === '>=' ? num >= want : num <= want;
+  });
+}
+
+// `skip` exempts one facet, so a chip can be counted against every other filter
+// — that is what its match count means.
+function policyMatches(p, skip) {
+  if (pickTask && p.env !== pickTask) return false;
+  for (const [name, chosen] of Object.entries(pickFilters)) {
+    if (name === skip || !chosen.size) continue;
+    if (!chosen.has(attrOf(p, name))) return false;
+  }
+  return pickTerms.every(t => termHit(p, t) !== t.neg);
+}
+
+async function loadPolicies() {
+  const data = await fetch('/api/policies').then(r => r.json());
+  allPolicies = (data.policies || []).map(indexPolicy);
+  policyFacets = data.facets || {};
+  // Newest run first, by the YYYYMMDD-HHMMSS stamp in the name.
+  allPolicies.forEach(p => { p._stamp = runParts(p.name).stamp; });
+  allPolicies.sort((a, b) => b._stamp.localeCompare(a._stamp));
+  // Land on the task that ran most recently — usually the one being worked on.
+  pickTask = allPolicies.length ? allPolicies[0].env : '';
+  renderTaskButtons();
+  refreshPickList();
+}
+
+function renderTaskButtons() {
+  const counts = {};
+  for (const p of allPolicies) counts[p.env] = (counts[p.env] || 0) + 1;
+  // Most recently trained task first (allPolicies is already newest-first).
+  const envs = [];
+  for (const p of allPolicies) if (!envs.includes(p.env)) envs.push(p.env);
+  const btn = (task, label, n) =>
+    `<button class="task-btn${pickTask === task ? ' on' : ''}" data-task="${task}">` +
+    `${label}<span class="task-n">${n}</span></button>`;
+  document.getElementById('pick-tasks').innerHTML =
+    btn('', 'all tasks', allPolicies.length) +
+    envs.map(e => btn(e, e, counts[e])).join('');
+}
+
+function onTaskClick(task) {
+  if (task === pickTask) return;
+  pickTask = task;
+  // Facets belong to a task, so its chips mean nothing under another one.
+  for (const k of Object.keys(pickFilters)) delete pickFilters[k];
+  renderTaskButtons();
+  refreshPickList();
+}
+
+function onPickSearch(q) {
+  pickTerms = parseQuery(q);
+  refreshPickList();
+}
+
+function onFacetChip(name, value) {
+  const chosen = pickFilters[name] || (pickFilters[name] = new Set());
+  if (chosen.has(value)) chosen.delete(value); else chosen.add(value);
+  if (!chosen.size) delete pickFilters[name];
+  refreshPickList();
+}
+
+// How a run turned out, from the cockpit's own numbers (see run_metrics.py).
+// These are what separate the seeds of one policy — the config knobs are
+// identical across them by construction.
+function perfHTML(p) {
+  const a = p.attrs || {};
+  const bits = [];
+  if (a['perf.seed'] !== undefined) bits.push(`s${a['perf.seed']}`);
+  if (a['perf.success'] !== undefined) bits.push(`succ ${(a['perf.success'] * 100).toFixed(1)}%`);
+  if (a['perf.reward'] !== undefined) bits.push(`R ${a['perf.reward'].toFixed(1)}`);
+  if (a['perf.status'] && a['perf.status'] !== 'done') {
+    bits.push(`<span class="bad">${a['perf.status']}</span>`);
+  }
+  const div = a['perf.divergence'];
+  if (div && div !== 'ok') bits.push(`<span class="${div === 'diverged' ? 'bad' : 'warn'}">${div}</span>`);
+  if (!bits.length) return '';
+  return `<span class="pick-perf">${bits.join(' ')}</span>`;
+}
+
+// Short name for a config key, borrowing the server's per-task disambiguation
+// (two keys ending in the same leaf are spelled out in full there).
+function attrLabel(name) {
+  const ax = (policyFacets[pickTask] || []).find(a => a.name === name);
+  return ax ? ax.label : name.split('.').pop();
+}
+
+function perfNumber(p, key) {
+  const v = (p.attrs || {})[key];
+  return typeof v === 'number' ? v : -Infinity;   // unmeasured runs sink
+}
+
+function onPickSort(key) {
+  pickSort = key;
+  document.querySelectorAll('#pick-sort .pol-chip').forEach(
+    b => b.classList.toggle('on', b.dataset.sort === key));
+  refreshPickList();
+}
+
+function refreshPickList() {
+  pickMatches = allPolicies.filter(p => policyMatches(p, null));
+  // allPolicies is newest-first, so 'recent' needs no sort at all; a perf sort
+  // falls back to recency for ties (and for runs the cockpit never saw).
+  if (pickSort !== 'recent') {
+    pickMatches.sort((a, b) => perfNumber(b, pickSort) - perfNumber(a, pickSort)
+      || b._stamp.localeCompare(a._stamp));
+  }
+  pickCursor = 0;
+  renderPickFacets();
+  renderPickList();
+}
+
+// Values within one facet are OR'd, facets AND together. A chip's count is how
+// many policies it would leave under every other filter, so a chip that can only
+// empty the list is dimmed rather than hidden — it still says the value exists.
+function renderPickFacets() {
+  const box = document.getElementById('pick-facets');
+  const facets = pickTask ? (policyFacets[pickTask] || []) : [];
+  if (!facets.length) {
+    box.innerHTML = `<span class="pick-hint">${pickTask
+      ? 'This task has no config knobs that vary across its runs.'
+      : 'Pick a task to filter by its config knobs.'}</span>`;
+    return;
+  }
+  box.innerHTML = facets.map(ax => {
+    const chosen = pickFilters[ax.name];
+    const pool = allPolicies.filter(p => policyMatches(p, ax.name));
+    const chips = ax.values.map(v => {
+      const val = String(v);
+      const n = pool.filter(p => attrOf(p, ax.name) === val).length;
+      const cls = chosen && chosen.has(val) ? ' on' : (n ? '' : ' dead');
+      return `<button class="pol-chip${cls}" title="${n} polic${n === 1 ? 'y' : 'ies'}"
+                data-facet="${ax.name}" data-val="${val}">${val}</button>`;
+    }).join('');
+    return `<div class="facet-row"><span class="facet-name" title="${ax.name}">${ax.name}</span>` +
+           `<span class="facet-vals">${chips}</span></div>`;
+  }).join('');
+}
+
+// The knobs worth spelling out on a row: whatever the user is filtering or
+// searching on first, then the rest of the task's facets. perf.* is excluded —
+// it has its own, always-visible slot on the row.
+function rowAttrKeys() {
+  const facets = (pickTask ? (policyFacets[pickTask] || []) : [])
+    .filter(ax => !ax.name.startsWith('perf.'));
+  const hot = facets.filter(ax => pickFilters[ax.name] ||
+    pickTerms.some(t => t.key && ax.name.toLowerCase().includes(t.key)));
+  return [...hot, ...facets.filter(ax => !hot.includes(ax))]
+    .slice(0, PICK_META_ATTRS).map(ax => ax.name);
+}
+
+function renderPickList() {
+  const list = document.getElementById('pick-list');
+  const selected = document.getElementById('run-sel').value;
+  const keys = rowAttrKeys();
+  const shown = pickMatches.slice(0, PICK_MAX_ROWS);
+  list.innerHTML = shown.length === 0
+    ? '<div class="empty">No policy matches these filters.</div>'
+    : shown.map((p, i) => {
+        const {when, tag} = runParts(p.name);
+        const attrs = keys.filter(k => (p.attrs || {})[k] !== undefined)
+          .map(k => `${attrLabel(k)}=${attrText(p.attrs[k])}`).join('  ');
+        const meta = [perfHTML(p), when, pickTask ? '' : p.env,
+                      `${p.n_checkpoints} ckpt`, attrs].filter(Boolean).join(' · ');
+        const cls = (p.name === selected ? ' sel' : '') + (i === pickCursor ? ' cursor' : '');
+        return `<div class="pick-item${cls}" data-idx="${i}" title="${p.name}">
+          <div class="pick-name">${tag || p.name}</div>
+          <div class="pick-meta">${meta}</div></div>`;
+      }).join('');
+  // The denominator is the task in view, not the whole of logs/ — that is the
+  // pool the chips and the search box are cutting down.
+  const scope = pickTask ? allPolicies.filter(p => p.env === pickTask).length
+                         : allPolicies.length;
+  const cnt = document.getElementById('pick-count');
+  cnt.textContent = pickMatches.length > shown.length
+    ? `${shown.length} of ${pickMatches.length} matches shown — narrow the search to see the rest`
+    : `${pickMatches.length} / ${scope} policies`;
+}
+
+// One delegated handler for the whole panel: rows and chips are re-rendered on
+// every keystroke, so per-element listeners would be rebuilt just as often.
+document.getElementById('pick-panel').addEventListener('click', e => {
+  const task = e.target.closest('.task-btn');
+  if (task) return onTaskClick(task.dataset.task);
+  const chip = e.target.closest('.pol-chip');
+  if (chip) {
+    return chip.dataset.sort ? onPickSort(chip.dataset.sort)
+                             : onFacetChip(chip.dataset.facet, chip.dataset.val);
+  }
+  const row = e.target.closest('.pick-item');
+  if (row) {
+    pickCursor = parseInt(row.dataset.idx);
+    selectPolicy(pickMatches[pickCursor].name);
+  }
+});
+
+// ↑/↓ walk the matches from the search box, Enter takes the highlighted one.
+function onPickKey(e) {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const n = Math.min(pickMatches.length, PICK_MAX_ROWS);
+    if (!n) return;
+    pickCursor = (pickCursor + (e.key === 'ArrowDown' ? 1 : n - 1)) % n;
+    renderPickList();
+    const row = document.querySelector(`.pick-item[data-idx="${pickCursor}"]`);
+    if (row) row.scrollIntoView({block: 'nearest'});
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (pickMatches[pickCursor]) selectPolicy(pickMatches[pickCursor].name);
+  }
 }
 
 function selectPolicy(name) {
-  document.getElementById('run-sel').value = name;
-  document.getElementById('run-dd-toggle').textContent = name ? policyLabel(name) : '— select policy —';
-  document.querySelectorAll('#run-dd-panel .dd-opt').forEach(o =>
-    o.classList.toggle('sel', o.dataset.value === name));
-  document.getElementById('run-dd').classList.remove('open');
-  onRunChange();
-}
-
-function toggleRunDD(e) {
-  e.stopPropagation();
-  document.getElementById('run-dd').classList.toggle('open');
-}
-// Close the dropdown when clicking outside of it.
-document.addEventListener('click', e => {
-  const dd = document.getElementById('run-dd');
-  if (dd && !dd.contains(e.target)) dd.classList.remove('open');
-});
-
-async function loadPolicies() {
-  const policies = await fetch('/api/policies').then(r => r.json());
-  const panel = document.getElementById('run-dd-panel');
-  const byEnv = {};
-  for (const p of policies) {
-    if (!byEnv[p.env]) byEnv[p.env] = [];
-    byEnv[p.env].push(p);
+  document.getElementById('run-sel').value = name || '';
+  const cur = document.getElementById('pick-current');
+  const p = allPolicies.find(x => x.name === name);
+  cur.classList.toggle('none', !name);
+  if (!name) {
+    cur.textContent = '— none —';
+  } else {
+    const attrs = Object.entries((p && p.attrs) || {})
+      .filter(([k]) => !k.startsWith('perf.'))
+      .map(([k, v]) => `${attrLabel(k)}=${attrText(v)}`).join('  ');
+    const queue = p && (p.attrs || {})['perf.queue'];
+    cur.innerHTML = `<div>${name}</div>` +
+      [p ? perfHTML(p) : '', queue ? `queue ${queue}` : '', attrs]
+        .filter(Boolean).map(s => `<div class="cur-attrs">${s}</div>`).join('');
   }
-  panel.innerHTML = '';
-  document.getElementById('run-dd-toggle').textContent = '— select policy —';
-  // Most recent run timestamp (YYYYMMDD-HHMMSS embedded in the name) per env.
-  const ts = name => (name.match(/-(\d{8}-\d{6})/) || [, ''])[1];
-  const recency = env => byEnv[env].reduce((mx, r) => { const t = ts(r.name); return t > mx ? t : mx; }, '');
-  // Sort groups by which env ran most recently (newest first).
-  const envs = Object.keys(byEnv).sort((a, b) => recency(b).localeCompare(recency(a)));
-  envs.forEach((env) => {
-    const grp = document.createElement('details');
-    grp.className = 'dd-group';
-    const sum = document.createElement('summary');
-    sum.textContent = `${env}  (${byEnv[env].length})`;
-    grp.appendChild(sum);
-    for (const r of byEnv[env]) {
-      const opt = document.createElement('div');
-      opt.className = 'dd-opt';
-      opt.dataset.value = r.name;
-      opt.textContent = policyLabel(r.name);
-      opt.onclick = () => selectPolicy(r.name);
-      grp.appendChild(opt);
-    }
-    panel.appendChild(grp);
-  });
+  renderPickList();
+  updateRunEnabled();
+  onRunChange();
+  refreshSweepAxes();
+}
+
+function updateRunEnabled() {
+  const reps = (parseInt(document.getElementById('n-det').value) || 0)
+             + (parseInt(document.getElementById('n-sto').value) || 0);
+  const total = reps * gridCellCount(selectedSweepAxes());
+  document.getElementById('run-btn').disabled =
+    !document.getElementById('run-sel').value || !total || total > MAX_SESSION_ROLLOUTS;
+}
+
+function openNewAnalysis() {
+  openModal('modal-newanalysis');
+  const box = document.getElementById('pick-search');
+  box.focus();
+  box.select();
+}
+
+// ── pinned axes (optional, per analysis) ─────────────────────────────────────
+// Ticking an axis turns one analysis into a small grid: every combination gets
+// its own rollout with that quantity held at a known value, and the det/sto
+// counts become repeats per cell. Nothing is pinned by default, which is the
+// behaviour this tab always had. The eval caches can't feed this — they keep
+// per-step channels, not the obs/action/qpos a rollout page and its video are
+// built from — so a pinned analysis simulates, and the cap keeps that honest.
+
+let sweepCands = [];       // axis candidates for the selected policy
+const sweepSel = {};       // axis name -> {checked, points}
+
+async function refreshSweepAxes() {
+  const run = document.getElementById('run-sel').value;
+  const p = allPolicies.find(x => x.name === run);
+  const env = p ? p.env : '';
+  sweepCands = [];
+  if (run && env) {
+    sweepCands = await fetch(
+      `/api/compare/grid_axes?run=${encodeURIComponent(run)}&env=${encodeURIComponent(env)}`
+    ).then(r => r.json()).catch(() => []);
+    if (!Array.isArray(sweepCands)) sweepCands = [];
+  }
+  Object.keys(sweepSel).forEach(k => delete sweepSel[k]);
+  renderSweepAxes();
+}
+
+function renderSweepAxes() {
+  const list = document.getElementById('sw-axes-list');
+  if (!sweepCands.length) {
+    list.innerHTML = '<span class="grid-axis-hint">No pinnable axes for this run — '
+      + 'rollouts sample every episode parameter.</span>';
+    updateSweepCells();
+    return;
+  }
+  list.innerHTML = sweepCands.map(c => {
+    if (!(c.name in sweepSel)) sweepSel[c.name] = {checked: false, points: 3};
+    const s = sweepSel[c.name];
+    const hint = `[${(+c.lo).toPrecision(3)}, ${(+c.hi).toPrecision(3)}]${c.kind === 'model' ? ' · model' : ''}`;
+    return `<label class="grid-axis-row">
+      <input type="checkbox" ${s.checked ? 'checked' : ''}
+             onchange="onSweepAxisToggle('${c.name}', this.checked)">
+      <span>${c.label}</span>
+      <span class="grid-axis-hint">${hint}</span>
+      <input type="number" min="2" max="24" value="${s.points}"
+             onchange="onSweepAxisPoints('${c.name}', this.value)" title="points on this axis">
+    </label>`;
+  }).join('');
+  updateSweepCells();
+}
+
+function onSweepAxisToggle(name, on) {
+  if (sweepSel[name]) sweepSel[name].checked = on;
+  updateSweepCells();
+}
+
+function onSweepAxisPoints(name, v) {
+  if (sweepSel[name]) sweepSel[name].points = Math.max(2, parseInt(v) || 2);
+  updateSweepCells();
+}
+
+function selectedSweepAxes() {
+  return sweepCands.filter(c => sweepSel[c.name] && sweepSel[c.name].checked)
+    .map(c => ({name: c.name, points: sweepSel[c.name].points}));
+}
+
+function sweepStatus(msg, err) {
+  const el = document.getElementById('sw-status');
+  el.textContent = msg || '';
+  el.className = err ? 'err' : '';
+}
+
+// The count that matters is rollouts, not cells: each one is a video plus a full
+// trajectory, and the server refuses past MAX_SESSION_ROLLOUTS.
+function updateSweepCells() {
+  const sel = selectedSweepAxes();
+  const cells = gridCellCount(sel);
+  const reps = (parseInt(document.getElementById('n-det').value) || 0)
+             + (parseInt(document.getElementById('n-sto').value) || 0);
+  const total = cells * reps;
+  const el = document.getElementById('sw-cells');
+  el.textContent = !sel.length
+    ? `${reps} sampled rollout${reps === 1 ? '' : 's'}`
+    : `${cells} cells × ${reps} = ${total} rollouts` +
+      (total > MAX_SESSION_ROLLOUTS ? `  ⚠ over the ${MAX_SESSION_ROLLOUTS} limit` : '');
+  el.className = 'grid-cells' + (total && total <= MAX_SESSION_ROLLOUTS ? '' : ' err');
+  updateRunEnabled();
 }
 
 async function onRunChange() {
@@ -1043,14 +1598,19 @@ async function onRunClick() {
   const btn = document.getElementById('run-btn');
   btn.disabled = true;
   btn.textContent = 'Starting…';
+  sweepStatus('');
 
   try {
     const resp = await fetch('/api/sessions', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({run, checkpoint_step: ckpt || 'latest', n_det: nDet, n_sto: nSto}),
+      body: JSON.stringify({run, checkpoint_step: ckpt || 'latest', n_det: nDet, n_sto: nSto,
+                            sweep: selectedSweepAxes()}),
     });
-    const {session_id} = await resp.json();
+    const {session_id, error} = await resp.json();
+    // The server resolves the grid before touching a GPU, so a bad axis or an
+    // over-cap request comes back here rather than dying in a subprocess.
+    if (error || !session_id) { sweepStatus(error || 'could not start', true); return; }
     rolloutData = {};
     closeModal('modal-newanalysis');
     window.location.hash = `sid=${session_id}`;
@@ -1059,17 +1619,20 @@ async function onRunClick() {
     switchTab('ses');
     startStream();
   } finally {
-    btn.disabled = false;
     btn.textContent = '▶ Run Analysis';
+    updateRunEnabled();
   }
 }
 
 // ── session management ────────────────────────────────────────────────────────
+// A session is one look at one policy — videos and rollout pages, ~45 MB of
+// them. The server wipes sessions/ on boot (AnalysisServer._clear_sessions), so
+// this list holds what was started in the current process and nothing older.
 async function refreshSessionList() {
   knownSessions = await fetch('/api/sessions').then(r => r.json());
   const sel = document.getElementById('session-sel');
   sel.innerHTML = knownSessions.length === 0
-    ? '<option value="">No sessions</option>'
+    ? '<option value="">No analyses yet</option>'
     : knownSessions.map(s => {
         const label = s.run.split('-').pop() || s.session_id;
         const done = `${s.n_done}/${s.n_total}`;
@@ -1209,7 +1772,18 @@ function renderRolloutList(session) {
     statusLine = `<div style="font-size:10px;color:var(--red);padding:2px 6px 6px">all ${nError} rollouts failed</div>`;
   }
 
-  list.innerHTML = statusLine + session.rollouts.map(r => {
+  // With axes pinned an analysis holds a couple of dozen rollouts that differ
+  // only in their parameters, so the list is filterable on them: `cube_size>1`,
+  // `force_phase=0`, `det`. Same term syntax as the policy picker.
+  const axes = session.axes || [];
+  const rows = session.rollouts.filter(r => rolloutMatches(r, axes));
+  const filter = axes.length ? `
+    <input id="roll-filter" type="search" autocomplete="off" value="${rolloutFilter}"
+           placeholder="filter — ${axes.map(a => a.name).slice(0, 2).join(', ')}…"
+           oninput="onRolloutFilter(this.value)">
+    <div class="roll-count">${rows.length} / ${session.rollouts.length} rollouts</div>` : '';
+
+  list.innerHTML = filter + statusLine + rows.map(r => {
     const nameEl = r.status === 'done'
       ? `<a href="javascript:void(0)" onclick="openRollout('${r.name}')" class="rname">${r.name}</a>`
       : `<span class="rname">${r.name}</span>`;
@@ -1219,13 +1793,40 @@ function renderRolloutList(session) {
       : (r.status === 'error' && r.error
           ? `<div class="rdetail" style="color:var(--red)">${r.error.slice(0, 80)}</div>`
           : '');
+    const params = Object.entries(r.params || {}).length
+      ? `<div class="rparams">${Object.entries(r.params)
+           .map(([k, v]) => `${k.split('.').pop()}=${(+v).toPrecision(3)}`).join('  ')}</div>`
+      : '';
     return `<div class="ritem-wrap">
       <div class="ritem ${r.status}">
         <span>${icons[r.status] || '?'}</span>${nameEl}
         <span class="rtag">${tag}</span>
-      </div>${detail}
+      </div>${params}${detail}
     </div>`;
-  }).join('') || '<div class="empty">No rollouts</div>';
+  }).join('') || '<div class="empty">No rollouts match.</div>';
+}
+
+let rolloutFilter = '';
+let rolloutTerms = [];
+
+function onRolloutFilter(q) {
+  rolloutFilter = q;
+  rolloutTerms = parseQuery(q);
+  if (currentSession) renderRolloutList(currentSession);
+  const box = document.getElementById('roll-filter');
+  if (box) { box.focus(); box.setSelectionRange(q.length, q.length); }
+}
+
+function rolloutMatches(r, axes) {
+  if (!rolloutTerms.length) return true;
+  const rec = {
+    _pairs: Object.entries(r.params || {}).map(
+      ([k, v]) => [k.toLowerCase(), String(v).toLowerCase(), +v]),
+    _hay: `${r.name} ${r.deterministic ? 'det' : 'sto'} ${r.status} ` +
+      Object.entries(r.params || {}).map(([k, v]) => `${k}=${v}`).join(' '),
+  };
+  rec._hay = rec._hay.toLowerCase();
+  return rolloutTerms.every(t => termHit(rec, t) !== t.neg);
 }
 
 // ── session-shared tags (sidebar) ───────────────────────────────────────────────
@@ -1488,7 +2089,18 @@ let colCollecting = false;          // a collect job is in flight (disables Coll
 
 function resizeCompareChart() {
   const el = document.getElementById('cmp-chart');
-  if (el && el.data) { try { Plotly.Plots.resize(el); } catch (_) {} }
+  if (!el || !el.data) return;
+  // A grid heatmap carries an explicit width/height derived from the pane, so a
+  // resize has to rebuild it rather than stretch the svg. renderGridHeatmap()
+  // calls back here, hence the guard on the pane having actually moved — that
+  // also settles the one-step feedback of a scrollbar appearing and stealing
+  // width.
+  if (lastCompareResult && lastCompareResult.kind === 'grid_heatmap') {
+    if (el.clientWidth === gridSizedFor.w && el.clientHeight === gridSizedFor.h) return;
+    renderGridHeatmap();
+    return;
+  }
+  try { Plotly.Plots.resize(el); } catch (_) {}
 }
 
 async function loadQueues(force) {
@@ -1731,6 +2343,7 @@ function toggleSeed(key, queue, p, run_name, on) {
 }
 
 const GRID_MAX_CELLS = 8192;        // mirrors server GRID_MAX_CELLS
+const MAX_SESSION_ROLLOUTS = 24;    // mirrors server MAX_SESSION_ROLLOUTS
 
 function representativeRun() {
   const p = selectedPolicies.values().next().value;
@@ -1870,7 +2483,7 @@ function syncVizFields() {
 async function onVisualizationChange() {
   syncVizFields();
   await refreshBinAxes();   // ensure sampled bin-axis candidates are loaded
-  if (currentDataset && lastCompareResult) viewScore();
+  refreshViewState();
 }
 
 // Load the env's default channel/criterion into the viz form when a dataset is
@@ -1955,12 +2568,12 @@ function renderBinAxes() {
 function onBinAxisToggle(name, on) {
   if (binSel[name]) binSel[name].checked = on;
   updateBinCells();
-  if (currentDataset && lastCompareResult) viewScore();
+  refreshViewState();
 }
 function onBinAxisPoints(name, v) {
   if (binSel[name]) binSel[name].points = Math.max(2, parseInt(v) || 8);
   updateBinCells();
-  if (currentDataset && lastCompareResult) viewScore();
+  refreshViewState();
 }
 function selectedBinAxes() {
   return binCands
@@ -1977,6 +2590,174 @@ function updateBinCells() {
   const cells = sel.reduce((a, c) => a * Math.max(1, binSel[c.name].points), 1);
   el.textContent = sel.length ? `${cells} bins` : 'no bin axes selected';
   el.className = 'grid-cells' + (sel.length ? '' : ' err');
+}
+
+// ── policy subset selector ───────────────────────────────────────────────────
+// A sweep dataset can hold dozens of policies; only the ones ticked here go into
+// the view. Seeds still average into each heatmap cell exactly as before — this
+// chooses which policies contribute at all.
+const polSel = new Set();       // labels of the policies included in the view
+
+function datasetPolicies() { return (currentDataset && currentDataset.policies) || []; }
+function datasetPolicyAxes() { return (currentDataset && currentDataset.policy_axes) || []; }
+
+// Request shape for /api/compare/view; the server re-reads attrs from configs.
+function selectedDatasetPolicies() {
+  return datasetPolicies()
+    .filter(p => polSel.has(p.label))
+    .map(p => ({label: p.label, sensor_bundle: p.sensor_bundle, run_names: p.run_names}));
+}
+
+function resetPolicySelection() {
+  polSel.clear();
+  datasetPolicies().forEach(p => polSel.add(p.label));
+}
+
+// Attribute values are matched as strings throughout (axis values and per-policy
+// values are both JSON numbers or strings, so this pairs them either way).
+function attrValue(p, name) {
+  const v = (p.attrs || {})[name];
+  return v == null ? '' : String(v);
+}
+
+function renderPolicySelector() {
+  const box = document.getElementById('cmp-policies');
+  const pols = datasetPolicies();
+  if (!pols.length) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  const cnt = document.getElementById('cmp-pol-count');
+  cnt.textContent = `${polSel.size}/${pols.length} selected`;
+  cnt.className = 'grid-cells' + (polSel.size ? '' : ' err');
+
+  // One chip row per varying config knob: clicking a value ticks (or unticks)
+  // every policy carrying it — the quick way to isolate "the kp=8 runs".
+  document.getElementById('cmp-policy-attrs').innerHTML = datasetPolicyAxes().map((ax, ai) => {
+    const chips = ax.values.map((v, vi) => {
+      const matching = pols.filter(p => attrValue(p, ax.name) === String(v));
+      const on = matching.filter(p => polSel.has(p.label)).length;
+      const cls = on === 0 ? '' : (on === matching.length ? ' on' : ' mixed');
+      return `<button class="pol-chip${cls}" title="${matching.length} policies" onclick="onPolicyChip(${ai}, ${vi})">${v}</button>`;
+    }).join('');
+    return `<span class="pol-attr"><span>${ax.label}</span>${chips}</span>`;
+  }).join('');
+
+  document.getElementById('cmp-policy-list').innerHTML = pols.map((p, i) => `
+    <label class="pol-row" title="${p.run_names.length} seed${p.run_names.length === 1 ? '' : 's'}">
+      <input type="checkbox" ${polSel.has(p.label) ? 'checked' : ''}
+             onchange="onPolicyToggle(${i}, this.checked)">
+      <span>${p.label}</span>
+    </label>`).join('');
+}
+
+function onPolicyToggle(i, on) {
+  const p = datasetPolicies()[i];
+  if (!p) return;
+  if (on) polSel.add(p.label); else polSel.delete(p.label);
+  renderPolicySelector();
+  refreshViewState();
+}
+
+function onPolicyChip(ai, vi) {
+  const ax = datasetPolicyAxes()[ai];
+  if (!ax) return;
+  const val = String(ax.values[vi]);
+  const matching = datasetPolicies().filter(p => attrValue(p, ax.name) === val);
+  // Fully ticked → drop them all; otherwise tick the rest.
+  const allOn = matching.every(p => polSel.has(p.label));
+  matching.forEach(p => allOn ? polSel.delete(p.label) : polSel.add(p.label));
+  renderPolicySelector();
+  refreshViewState();
+}
+
+function setAllPolicies(on) {
+  if (on) resetPolicySelection(); else polSel.clear();
+  renderPolicySelector();
+  refreshViewState();
+}
+
+// The checkbox list can grow long; let the header caret fold it away. The count
+// and all/none controls stay put so the selection is still legible when folded.
+function togglePolicyList() {
+  document.getElementById('cmp-policies').classList.toggle('pol-collapsed');
+}
+
+// ── render gate ──────────────────────────────────────────────────────────────
+// Scoring, policy and bin-axis edits don't render on their own: rendering costs
+// a server round-trip over the whole cache, and a half-finished selection is
+// rarely the one the user means. They mark the view stale instead and wait for
+// ▶ Generate Plot. (The grid X/Y axis dropdowns are exempt — that pivot is a
+// client-side re-fold of the result already in hand.)
+let viewRendering = false;        // a /api/compare/view request is in flight
+let viewRequestedSlug = null;     // dataset the user last asked to render
+let lastRenderedSig = null;       // viewSignature() of the plot on screen
+let lastRenderCached = false;     // that plot came back from the server's view cache
+
+// Everything that decides what comes back from /api/compare/view. Comparing this
+// against the plot on screen is what greys the button out: unticking a policy and
+// re-ticking it lands back on the same signature, so there is nothing to
+// generate. Null on failure, so a failed render is always retryable.
+function viewSignature() {
+  if (!currentDataset) return null;
+  return JSON.stringify({
+    slug: currentDataset.slug,
+    visualization: document.getElementById('cmp-viz').value,
+    criterion: buildCriterion(),
+    policies: selectedDatasetPolicies().map(p => p.label).sort(),
+  });
+}
+
+function viewIsStale() {
+  const sig = viewSignature();
+  return sig != null && sig !== lastRenderedSig;
+}
+
+function updateGenerateEnabled() {
+  document.getElementById('cmp-gen').disabled =
+    !currentDataset || viewRendering || !viewIsStale();
+}
+
+// Called by every control that feeds the view: re-checks whether the settings
+// have actually moved away from what is plotted, and says so.
+function refreshViewState() {
+  if (!currentDataset) return;
+  saveViewState();   // every control that feeds the view also comes back with it
+  updateGenerateEnabled();
+  if (viewRendering) return;   // the in-flight render owns the status line
+  const st = document.getElementById('cmp-status');
+  if (!viewIsStale()) {
+    if (lastCompareResult) {
+      st.className = '';
+      st.textContent = lastRenderCached ? 'Up to date (cached plot).' : 'Up to date.';
+    }
+    return;
+  }
+  st.className = '';
+  st.textContent = lastCompareResult
+    ? 'Settings changed — press ▶ Generate Plot to update.'
+    : 'Press ▶ Generate Plot to render.';
+}
+
+// Drop the current plot. Called before every render so a stale chart is never
+// left on screen passing for the one being generated.
+function clearCompareChart(msg) {
+  lastCompareResult = null;
+  lastRenderedSig = null;   // nothing on screen, so nothing matches the settings
+  const el = document.getElementById('cmp-chart');
+  Plotly.purge('cmp-chart');
+  // purge() drops the div's Plotly listeners too, so the band-toggle handler
+  // has to be re-wired on the next render.
+  el._bandToggleWired = false;
+  el.innerHTML = msg ? `<div class="cmp-placeholder">${msg}</div>` : '';
+  document.getElementById('cmp-grid-controls').style.display = 'none';
+  document.getElementById('cmp-dl').disabled = true;
+  document.getElementById('cmp-dl-data').disabled = true;
+}
+
+// Plotly builds its frame alongside whatever is already in the container, so a
+// placeholder has to be taken out by hand before plotting over it.
+function clearChartPlaceholder() {
+  document.getElementById('cmp-chart')
+    .querySelectorAll('.cmp-placeholder, .empty').forEach(n => n.remove());
 }
 
 function applyCompareConfig(cfg) {
@@ -2055,30 +2836,61 @@ function buildCriterion() {
   return crit;
 }
 
-// Any scoring / visualization / bin-axis change re-renders the selected dataset
-// from cache (no GPU, no re-collect) — the whole point of saved datasets.
+// A scoring / visualization / bin-axis change only stales the view; ▶ Generate
+// Plot re-renders it from cache (no GPU, no re-collect) — the whole point of
+// saved datasets.
 function onScoringChange() {
-  if (currentDataset) viewScore();
+  refreshViewState();
 }
 
-async function viewScore() {
-  if (!currentDataset) return;
+// `cacheOnly` asks the server for a previously rendered view and nothing more:
+// it never starts a computation, so a miss is silent and just leaves the usual
+// "press ▶ Generate Plot" state standing. Used when a dataset is opened.
+async function viewScore({cacheOnly = false} = {}) {
+  if (!currentDataset || viewRendering) return;
   const criterion = buildCriterion();
   const st = document.getElementById('cmp-status');
-  if (!criterion.channel) { st.className = ''; st.textContent = 'Pick a success channel.'; return; }
-  st.className = ''; st.textContent = 'Rendering…';
+  // Nothing to plot: drop the old chart too, so the status line isn't explaining
+  // a blocked render next to a plot that looks like its answer.
+  const bail = (msg) => {
+    if (cacheOnly) return;
+    st.className = ''; st.textContent = msg; clearCompareChart(msg);
+  };
+  if (!criterion.channel) { bail('Pick a success channel.'); return; }
+  const policies = selectedDatasetPolicies();
+  if (!policies.length) { bail('Select at least one policy.'); return; }
+  const sig = viewSignature();   // what this render will put on screen
+  const reqSlug = currentDataset.slug;
+  viewRendering = true;
+  if (!cacheOnly) viewRequestedSlug = reqSlug;   // a peek isn't a request to render
+  updateGenerateEnabled();
+  // Never leave the previous plot standing in for the one being fetched.
+  clearCompareChart(cacheOnly ? 'Loading cached plot…' : 'Generating…');
+  st.className = ''; st.textContent = '';   // the chart placeholder carries the message
   try {
     const data = await fetch('/api/compare/view', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         mode: currentDataset.mode, benchmark: currentDataset.benchmark,
         visualization: document.getElementById('cmp-viz').value,
-        criterion, policies: currentDataset.policies, grid_spec: currentDataset.grid_spec,
+        criterion, policies, grid_spec: currentDataset.grid_spec,
+        // Names the dataset whose rendered-view cache this reads and writes.
+        dataset: reqSlug, cache_only: cacheOnly,
       }),
     }).then(r => r.json());
+    // The user moved on while this was in flight — plotting now would hang a
+    // stale chart under another dataset's controls.
+    if (!currentDataset || currentDataset.slug !== reqSlug) return;
     if (data && data.result) {
-      st.className = ''; st.textContent = 'Done.';
+      lastRenderedSig = sig;
+      lastRenderCached = !!data.cached;
+      st.className = '';
+      st.textContent = lastRenderCached ? 'Up to date (cached plot).' : 'Up to date.';
       renderCompareChart(data.result);
+    } else if (cacheOnly) {
+      // No cached view for these settings — say so the same way an untouched
+      // dataset does, and wait for the button.
+      clearCompareChart('Press ▶ Generate Plot to render this dataset.');
     } else {
       st.className = 'err';
       if (data && data.error === 'not collected') {
@@ -2089,9 +2901,23 @@ async function viewScore() {
       } else {
         st.textContent = 'Re-view failed.';
       }
+      lastRenderedSig = null;   // nothing plotted — leave the button live to retry
+      clearCompareChart(st.textContent);
     }
   } catch (_) {
-    st.className = 'err'; st.textContent = 'Re-view failed.';
+    if (cacheOnly) {
+      clearCompareChart('Press ▶ Generate Plot to render this dataset.');
+    } else {
+      st.className = 'err'; st.textContent = 'Re-view failed.';
+      lastRenderedSig = null;
+      clearCompareChart(st.textContent);
+    }
+  } finally {
+    viewRendering = false;
+    // Edits made while the request was in flight aren't in this plot; re-checking
+    // the signature both re-enables the button and says so.
+    refreshViewState();
+    updateGenerateEnabled();
   }
 }
 
@@ -2103,8 +2929,11 @@ async function loadDatasets() {
   try { datasets = await fetch('/api/datasets').then(r => r.json()); } catch (_) { datasets = []; }
   if (!Array.isArray(datasets)) datasets = [];
   renderDatasetList();
-  // A dataset that just finished while selected: render it without a click.
+  pruneViewStates();
+  // A dataset the user already asked to plot, that was still collecting at the
+  // time: honour that request once the data lands, as the status line promised.
   if (currentDataset && wasCollecting.has(currentDataset.slug)
+      && viewRequestedSlug === currentDataset.slug
       && datasets.some(d => d.slug === currentDataset.slug && d.status === 'ready')) {
     viewScore();
   }
@@ -2149,6 +2978,105 @@ function renderDatasetList() {
     </div>`).join('');
 }
 
+// ── remembered view state ────────────────────────────────────────────────────
+// Coming back to a dataset comes back to the view it was left on — the same
+// visualization, criterion, policy subset and grid pivot — rather than resetting
+// to the env defaults. Kept per slug in localStorage so it survives a reload and
+// a server restart; the plot itself comes back from the server's view cache, so
+// the restored view is usually on screen without recomputing anything.
+const VIEW_STATE_KEY = 'cmpViewState';
+const LAST_DATASET_KEY = 'cmpLastDataset';
+const VIEW_FIELDS = ['cmp-viz', 'cmp-channel', 'cmp-smode', 'cmp-threshold',
+                     'cmp-smin', 'cmp-smax', 'cmp-npts', 'cmp-hold', 'cmp-skip'];
+
+function readViewStates() {
+  try { return JSON.parse(localStorage.getItem(VIEW_STATE_KEY) || '{}') || {}; }
+  catch (_) { return {}; }
+}
+
+function writeViewStates(all) {
+  // Best-effort: a full or unavailable localStorage must not break the tab.
+  try { localStorage.setItem(VIEW_STATE_KEY, JSON.stringify(all)); } catch (_) {}
+}
+
+function captureViewState() {
+  const st = {fields: {}, abs: document.getElementById('cmp-abs').checked,
+              policies: [...polSel], bins: JSON.parse(JSON.stringify(binSel))};
+  VIEW_FIELDS.forEach(id => { st.fields[id] = document.getElementById(id).value; });
+  // The grid pivot is held by axis *id*, not index, so it survives the axis
+  // list being renumbered by a different criterion or policy subset.
+  st.grid = {x: gridSel.x, y: gridSel.y, col: facetSel.col, row: facetSel.row,
+             pages: {...pageSel}, ref: gridRef, summaryPrev};
+  return st;
+}
+
+function saveViewState() {
+  if (!currentDataset) return;
+  const all = readViewStates();
+  all[currentDataset.slug] = captureViewState();
+  writeViewStates(all);
+  try { localStorage.setItem(LAST_DATASET_KEY, currentDataset.slug); } catch (_) {}
+}
+
+// Drop states for datasets that no longer exist (deleted from another tab, or a
+// wiped analysis dir). Skipped on an empty list, which is also what a failed
+// fetch looks like — that must not erase every remembered view.
+function pruneViewStates() {
+  if (!datasets.length) return;
+  const live = new Set(datasets.map(d => d.slug));
+  const all = readViewStates();
+  const stale = Object.keys(all).filter(s => !live.has(s));
+  if (!stale.length) return;
+  stale.forEach(s => delete all[s]);
+  writeViewStates(all);
+}
+
+function forgetViewState(slug) {
+  const all = readViewStates();
+  delete all[slug];
+  writeViewStates(all);
+  try {
+    if (localStorage.getItem(LAST_DATASET_KEY) === slug) {
+      localStorage.removeItem(LAST_DATASET_KEY);
+    }
+  } catch (_) {}
+}
+
+// Returns false when this dataset has no remembered view, leaving the caller's
+// defaults standing.
+function applyViewState(slug) {
+  const st = readViewStates()[slug];
+  if (!st) return false;
+  VIEW_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    const prev = el.value;
+    if (st.fields[id] == null) return;
+    el.value = st.fields[id];
+    // A remembered channel this env no longer offers (or a dropped criterion)
+    // leaves the select empty — keep the default in that case.
+    if (el.tagName === 'SELECT' && el.selectedIndex < 0) el.value = prev;
+  });
+  document.getElementById('cmp-abs').checked = !!st.abs;
+  // Policies are matched by label: a re-collected dataset may have gained or
+  // lost some, and a remembered set that no longer matches anything falls back
+  // to the whole dataset rather than to an unplottable empty selection.
+  const known = new Set(datasetPolicies().map(p => p.label));
+  const keep = (st.policies || []).filter(l => known.has(l));
+  if (keep.length) { polSel.clear(); keep.forEach(l => polSel.add(l)); }
+  // Bin axes are re-offered by refreshBinAxes(), which keeps whatever is already
+  // in binSel and prunes what this dataset has no axis for.
+  Object.keys(binSel).forEach(k => delete binSel[k]);
+  Object.assign(binSel, st.bins || {});
+  const g = st.grid || {};
+  gridSel = {x: g.x || null, y: g.y || null};
+  facetSel = {col: g.col || GRID_NONE, row: g.row || GRID_NONE};
+  facetInit = slug;        // restored facets stand in for the per-dataset defaults
+  pageSel = g.pages || {};
+  gridRef = g.ref || null;
+  summaryPrev = g.summaryPrev || null;
+  return true;
+}
+
 async function selectDataset(slug) {
   let meta;
   try { meta = await fetch(`/api/datasets/${encodeURIComponent(slug)}`).then(r => r.json()); }
@@ -2156,19 +3084,42 @@ async function selectDataset(slug) {
   if (!meta || !meta.slug) return;
   currentDataset = meta;
   renderDatasetList();
-  await loadVizConfig(meta.env);   // channel / criterion defaults for this env
+  resetPolicySelection();          // every policy, unless a remembered view says otherwise
+  await loadVizConfig(meta.env);   // channel / criterion defaults for this env…
+  applyViewState(slug);            // …then the view this dataset was last left on
+  renderPolicySelector();
   syncVizFields();
   await refreshBinAxes();
-  viewScore();
+  // Switching datasets drops the old plot rather than leaving another dataset's
+  // chart under the new one's controls.
+  viewRequestedSlug = null;
+  clearCompareChart('Press ▶ Generate Plot to render this dataset.');
+  refreshViewState();
+  // The settings now on screen are the ones this view was last rendered with, so
+  // the server has it cached — put it straight back up. A miss computes nothing
+  // and leaves the button waiting.
+  await viewScore({cacheOnly: true});
+}
+
+// Reopening the tab returns to the dataset last worked on, with its view.
+async function restoreLastDataset() {
+  if (currentDataset) return;
+  let slug = null;
+  try { slug = localStorage.getItem(LAST_DATASET_KEY); } catch (_) {}
+  if (slug && datasets.some(d => d.slug === slug)) await selectDataset(slug);
 }
 
 async function onDeleteDataset(slug) {
   try { await fetch(`/api/datasets/${encodeURIComponent(slug)}`, {method: 'DELETE'}); } catch (_) {}
+  forgetViewState(slug);   // its views are gone server-side too
   if (currentDataset && currentDataset.slug === slug) {
     currentDataset = null;
-    Plotly.purge('cmp-chart');
-    document.getElementById('cmp-grid-controls').style.display = 'none';
+    polSel.clear();
+    viewRequestedSlug = null;
+    clearCompareChart();
+    updateGenerateEnabled();
     document.getElementById('viz-bin-axes').style.display = 'none';
+    document.getElementById('cmp-policies').style.display = 'none';
     const st = document.getElementById('cmp-status'); st.className = ''; st.textContent = 'Select a dataset to visualize.';
   }
   await loadDatasets();
@@ -2299,9 +3250,12 @@ function cmpDownloadName() {
 function downloadCompareChart() {
   const gd = document.getElementById('cmp-chart');
   if (!gd || !gd.data || !gd.data.length) return;
+  // A grid heatmap can be taller than the pane it scrolls in — export the whole
+  // figure, not the visible slice.
+  const fl = gd._fullLayout || {};
   Plotly.downloadImage(gd, {
     format: 'png', scale: 2,
-    width: gd.clientWidth, height: gd.clientHeight,
+    width: fl.width || gd.clientWidth, height: fl.height || gd.clientHeight,
     filename: cmpDownloadName(),
   });
 }
@@ -2338,24 +3292,34 @@ function downloadCompareData() {
   URL.revokeObjectURL(url);
 }
 
-// Long-format CSV of the currently-shown grid pivot: one row per
-// (x, y, policy) cell, for the chosen axis pair and metric.
+// Long-format CSV of the currently-shown grid pivot: one row per (x, y, panel)
+// cell, for the chosen axis pair. Panels are identified by their facet
+// coordinates and the policies pooled into them; the exported metrics are always
+// the raw ones, so a Δ view still writes out what each panel actually scored.
 function downloadGridData(result) {
   const xi = parseInt(document.getElementById('grid-x').value);
   const ySelVal = document.getElementById('grid-y').value;
   const yi = ySelVal === GRID_NONE ? -1 : parseInt(ySelVal);
-  const axes = result.axes;
-  const xvals = axes[xi].values;
-  const yvals = yi < 0 ? [''] : axes[yi].values;
-  const header = [axes[xi].name, yi < 0 ? '' : axes[yi].name, 'policy', 'success', 'mean'];
+  const axes = allAxes();
+  const xvals = axisTicks(xi);
+  const yvals = yi < 0 ? [''] : axisTicks(yi);
+  const fg = facetGrid(result.policies || [], xi, yi);
+  const header = [axes[xi].name, yi < 0 ? '' : axes[yi].name,
+                  fg.colAx ? fg.colAx.name : 'facet_col',
+                  fg.rowAx ? fg.rowAx.name : 'facet_row',
+                  'policies', 'n_seeds', 'success', 'mean'];
   const rows = [header.map(csvCell).join(',')];
-  result.policies.forEach(p => {
-    const zs = pivotGrid(p, xi, yi, 'success');
-    const zm = pivotGrid(p, xi, yi, 'mean');
+  fg.cells.forEach((row, ri) => row.forEach((cell, ci) => {
+    if (!cell) return;
+    const zs = pivotCells(cell.pols, xi, yi, 'success');
+    const zm = pivotCells(cell.pols, xi, yi, 'mean');
+    const names = cell.pols.map(p => p.label).join(' + ');
+    const seeds = cell.pols.reduce((a, p) => a + p.n_seeds, 0);
     for (let r = 0; r < yvals.length; r++)
       for (let c = 0; c < xvals.length; c++)
-        rows.push([xvals[c], yvals[r], p.label, zs[r][c], zm[r][c]].map(csvCell).join(','));
-  });
+        rows.push([xvals[c], yvals[r], fg.colVals[ci] ?? '', fg.rowVals[ri] ?? '',
+                   names, seeds, zs[r][c], zm[r][c]].map(csvCell).join(','));
+  }));
   const blob = new Blob([rows.join('\n') + '\n'], {type: 'text/csv'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -2368,6 +3332,7 @@ function downloadGridData(result) {
 function renderCompareChart(result) {
   lastCompareResult = result;
   if (result && result.kind === 'grid_heatmap') { setupGridHeatmap(result); return; }
+  clearChartPlaceholder();
   document.getElementById('cmp-grid-controls').style.display = 'none';
   const x = result.x;
   // X-axis spans the actual swept range so changing sweep_min/sweep_max and
@@ -2451,28 +3416,180 @@ function renderCompareChart(result) {
 // The grid benchmark ships a per-cell metric over the full randomization grid
 // (all axes). The viz is pivoted client-side so choosing a different axis pair
 // is instant — no re-collect, no server round-trip.
-const GRID_NONE = '__none__';   // Y-axis "(none)" → single-row heatmap
-let gridSel = {x: null, y: null};
+//
+// Two kinds of axis can go on X/Y. A *randomization* axis (result.axes) varies
+// within a policy's rollouts — its index comes from the cell. A *policy* axis
+// (result.policy_axes: a config knob the dataset's policies differ by, e.g. the
+// PD gains) is constant per policy, so putting one on an axis pools the cells of
+// every policy sharing that value. Both live in one flat list; a dropdown value
+// is an index into it, randomization axes first.
+//
+// With randomization on both heatmap axes there is one panel per policy, and a
+// sweep holds dozens: 45 policies (5 sensor bundles × 3 kp × 3 kv) flowed two
+// wide is a 23-row scroll with nothing lined up. So the panel *wall* is itself a
+// grid over policy axes — "facets": one panel column per value of the column
+// facet, one row per value of the row facet, values written once on the bands
+// rather than as a policy name over every panel. Reading across a row is then
+// the kp comparison, and down a column the kv one. Any policy axis on neither
+// heatmap axis nor a facet becomes a "page": pooled by default, but visibly so.
+const GRID_NONE = '__none__';   // Y-axis / facet "(none)" option
+let gridSel = {x: null, y: null};   // remembered by axis id, across re-renders
+// Facet axes, also by id (a dataset switch invalidates indices, not ids).
+let facetSel = {col: GRID_NONE, row: GRID_NONE};
+let facetInit = false;          // slug the facets were last defaulted for (false: never)
+// Free policy axes: name -> '' (pool every value into each panel) | a value.
+let pageSel = {};
+let gridRef = null;             // {c, r} facet cell every panel is differenced from
+let summaryPrev = null;         // X/Y/facets stashed while collapsed to summary
+
+function allAxes() {
+  const r = lastCompareResult || {};
+  return [
+    ...(r.axes || []).map(a => ({...a, group: 'grid', id: 'grid:' + a.name})),
+    ...(r.policy_axes || []).map(a => ({...a, group: 'policy', id: 'policy:' + a.name})),
+  ];
+}
+function nGridAxes() { return ((lastCompareResult || {}).axes || []).length; }
+function isPolicyAxis(i) { return i >= nGridAxes(); }
+function axisLen(i) { return allAxes()[i].values.length; }
+
+// Plotly coordinates for an axis. Policy-axis values are discrete settings, not
+// positions, so they go on as categories — kp ∈ {2, 4, 8} gets three equal
+// columns rather than a gap-scaled numeric axis.
+function axisTicks(i) {
+  const ax = allAxes()[i];
+  return ax.group === 'policy' ? ax.values.map(String) : ax.values;
+}
+function axisIndexById(id) { return allAxes().findIndex(a => a.id === id); }
+function policyAxisIndices() {
+  return allAxes().map((a, i) => i).filter(i => isPolicyAxis(i));
+}
+
+// ── facets ───────────────────────────────────────────────────────────────────
+// A facet axis is a policy axis not already spent on X or Y. Resolved fresh on
+// every render: the same remembered id can stop being facetable when the user
+// moves that knob onto a heatmap axis.
+function facetIndex(kind, xi, yi) {
+  const id = facetSel[kind];
+  if (id === GRID_NONE) return -1;
+  const i = axisIndexById(id);
+  if (i < 0 || !isPolicyAxis(i) || i === xi || i === yi) return -1;
+  if (kind === 'row' && facetSel.col === id) return -1;   // one axis, one band
+  return i;
+}
+
+// Facet defaults, once per dataset: the policy axes with the fewest values fill
+// columns then rows, so the widest factor is the one left as pages rather than
+// the one squeezing every panel narrow. The user's picks survive regenerates.
+function defaultFacets(slug) {
+  if (facetInit === slug) {
+    // A remembered facet axis this render has no axis for (a restored view can
+    // predate a re-collect) would silently band nothing — fall back to the
+    // defaults rather than to an unexplained flat wall.
+    const stale = k => facetSel[k] !== GRID_NONE && axisIndexById(facetSel[k]) < 0;
+    if (!stale('col') && !stale('row')) return;
+  }
+  facetInit = slug;
+  const AX = allAxes();
+  const pol = policyAxisIndices()
+    .map(i => ({i, n: AX[i].values.length}))
+    .sort((a, b) => a.n - b.n || a.i - b.i);
+  facetSel = {col: pol[0] ? AX[pol[0].i].id : GRID_NONE,
+              row: pol[1] ? AX[pol[1].i].id : GRID_NONE};
+  pageSel = {};
+  gridRef = null;
+  summaryPrev = null;
+}
+
+// Policies surviving the page selection. `used` names the policy axes already
+// spoken for by X/Y/facets — those are laid out, not filtered.
+function pagedPolicies(pols, used) {
+  const free = policyAxisIndices().map(i => allAxes()[i]).filter(a => !used.has(a.name));
+  if (!free.length) return pols;
+  return pols.filter(p =>
+    free.every(a => !pageSel[a.name] || attrValue(p, a.name) === pageSel[a.name]));
+}
+
+// The panel matrix. `cells[r][c]` is null for a slot no policy fills; `colAx` /
+// `rowAx` null means that band has no facet, and with neither the panels fall
+// back to one per policy (flowed two wide, titled by name) — what the tab did
+// before facets, and still what a dataset with no policy axes gets.
+function facetGrid(pols, xi, yi) {
+  const AX = allAxes();
+  // A policy axis on X or Y *is* the policies laid out: they pool into one panel.
+  const merged = isPolicyAxis(xi) || (yi >= 0 && isPolicyAxis(yi));
+  const ci = merged ? -1 : facetIndex('col', xi, yi);
+  const ri = merged ? -1 : facetIndex('row', xi, yi);
+  const used = new Set();
+  [xi, yi, ci, ri].forEach(i => { if (i >= 0 && isPolicyAxis(i)) used.add(AX[i].name); });
+  const shown = pagedPolicies(pols, used);
+  const badge = (ps) => {
+    const seeds = ps.reduce((a, p) => a + p.n_seeds, 0);
+    return ps.length > 1 ? `${ps.length} pol · n=${seeds}` : `n=${seeds}`;
+  };
+  if (merged) {
+    const seeds = shown.reduce((a, p) => a + p.n_seeds, 0);
+    return {merged: true, colAx: null, rowAx: null, used,
+            colVals: [null], rowVals: [null],
+            cells: [[{pols: shown, title: `${shown.length} policies · ${seeds} seeds`}]]};
+  }
+  const colAx = ci >= 0 ? AX[ci] : null;
+  const rowAx = ri >= 0 ? AX[ri] : null;
+  if (!colAx && !rowAx) {
+    // With both heatmap axes on randomization (Y actually set, not (none)) the
+    // panels are one-per-policy thumbnails, so flow them 4 wide; otherwise 2.
+    const bothRand = yi >= 0 && !isPolicyAxis(xi) && !isPolicyAxis(yi);
+    const cols = Math.max(1, Math.min(shown.length, bothRand ? 4 : 2));
+    const cells = [];
+    shown.forEach((p, k) => {
+      const r = Math.floor(k / cols);
+      cells[r] = cells[r] || new Array(cols).fill(null);
+      cells[r][k % cols] = {pols: [p], title: `${p.label} (n=${p.n_seeds})`};
+    });
+    const grid = cells.length ? cells : [[null]];
+    return {merged: false, colAx: null, rowAx: null, used,
+            colVals: new Array(cols).fill(null), rowVals: grid.map(() => null),
+            cells: grid};
+  }
+  const colVals = colAx ? colAx.values.map(String) : [null];
+  const rowVals = rowAx ? rowAx.values.map(String) : [null];
+  const cells = rowVals.map(rv => colVals.map(cv => {
+    const ps = shown.filter(p =>
+      (!colAx || attrValue(p, colAx.name) === cv) &&
+      (!rowAx || attrValue(p, rowAx.name) === rv));
+    return ps.length ? {pols: ps, badge: badge(ps)} : null;
+  }));
+  return {merged: false, colAx, rowAx, colVals, rowVals, cells, used};
+}
 
 function setupGridHeatmap(result) {
-  const axes = result.axes || [];
+  const axes = allAxes();
   const xSel = document.getElementById('grid-x');
   const ySel = document.getElementById('grid-y');
-  const axOpts = axes.map((a, i) => `<option value="${i}">${a.label}</option>`).join('');
+  const nGrid = nGridAxes();
+  const opt = (a, i) => `<option value="${i}">${a.label}</option>`;
+  const gridOpts = axes.slice(0, nGrid).map(opt).join('');
+  const polOpts = axes.slice(nGrid)
+    .map((a, i) => opt(a, nGrid + i)).join('');
+  const axOpts = polOpts
+    ? `<optgroup label="randomization">${gridOpts}</optgroup>` +
+      `<optgroup label="policy">${polOpts}</optgroup>`
+    : gridOpts;
   xSel.innerHTML = axOpts;
   ySel.innerHTML = `<option value="${GRID_NONE}">(none)</option>` + axOpts;
 
   // Keep the user's picks across regenerates when still valid, else default to
   // the first two axes (grid_collect orders episode axes first, so X=primary).
-  const names = axes.map(a => a.name);
-  let xi = names.indexOf(gridSel.x);
+  const ids = axes.map(a => a.id);
+  let xi = ids.indexOf(gridSel.x);
   if (xi < 0) xi = 0;
-  let yiName = gridSel.y;
-  let yi = names.indexOf(yiName);
-  if (yiName !== GRID_NONE && yi < 0) yi = axes.length > 1 ? (xi === 0 ? 1 : 0) : -1;
+  let yi = ids.indexOf(gridSel.y);
+  if (gridSel.y !== GRID_NONE && yi < 0) yi = nGrid > 1 ? (xi === 0 ? 1 : 0) : -1;
+  if (yi === xi) yi = -1;
   xSel.value = String(xi);
   ySel.value = yi < 0 ? GRID_NONE : String(yi);
 
+  defaultFacets(currentDataset ? currentDataset.slug : null);
   document.getElementById('cmp-grid-controls').style.display = 'flex';
   renderGridHeatmap();
 }
@@ -2486,37 +3603,219 @@ function onGridAxisChange(which) {
     if (which === 'x') ySel.value = gridSel.xIdx != null ? String(gridSel.xIdx) : GRID_NONE;
     else xSel.value = gridSel.yIdx != null ? String(gridSel.yIdx) : xSel.value;
   }
+  gridRef = null;          // panels are a different set now — its cell is gone
+  summaryPrev = null;      // a hand-picked pair isn't "the summary" to toggle out of
   renderGridHeatmap();
 }
 
-// Marginalize: average the per-cell metric over every axis except (xi, yi).
-// yi < 0 collapses to a single row (only an X axis chosen).
-function pivotGrid(policy, xi, yi, metricKey) {
-  const metric = policy[metricKey], ci = policy.cell_index;
-  const nx = gridAxisLen(xi), ny = yi < 0 ? 1 : gridAxisLen(yi);
+function onFacetChange(kind) {
+  const other = kind === 'col' ? 'row' : 'col';
+  const val = document.getElementById(kind === 'col' ? 'grid-fcol' : 'grid-frow').value;
+  // One axis can't band both ways: taking the other band's axis swaps them.
+  if (val !== GRID_NONE && facetSel[other] === val) facetSel[other] = facetSel[kind];
+  facetSel[kind] = val;
+  gridRef = null;
+  renderGridHeatmap();
+}
+
+function onGridRefChange() {
+  const v = document.getElementById('grid-ref').value;
+  gridRef = v === GRID_NONE ? null : {c: +v.split(':')[0], r: +v.split(':')[1]};
+  renderGridHeatmap();
+}
+
+// vi < 0 pools the axis again; clicking the value already shown does the same.
+function onPageChip(ai, vi) {
+  const ax = allAxes()[ai];
+  if (!ax) return;
+  const val = vi < 0 ? '' : String(ax.values[vi]);
+  pageSel[ax.name] = pageSel[ax.name] === val ? '' : val;
+  gridRef = null;
+  renderGridHeatmap();
+}
+
+// Collapse to summary: put the policy axes themselves on X/Y, so the whole
+// randomization grid marginalises into one cell per policy setting — the
+// overview the facet matrix is the drill-down of. Toggles back to the pair and
+// facets it replaced.
+function toggleSummary() {
+  const pol = policyAxisIndices();
+  const xSel = document.getElementById('grid-x');
+  const ySel = document.getElementById('grid-y');
+  if (summaryPrev) {
+    const xi = axisIndexById(summaryPrev.x);
+    const yi = axisIndexById(summaryPrev.y);
+    xSel.value = String(xi < 0 ? 0 : xi);
+    ySel.value = yi < 0 ? GRID_NONE : String(yi);
+    facetSel = {col: summaryPrev.col, row: summaryPrev.row};
+    summaryPrev = null;
+  } else {
+    if (!pol.length) return;
+    summaryPrev = {x: gridSel.x, y: gridSel.y, col: facetSel.col, row: facetSel.row};
+    xSel.value = String(pol[0]);
+    ySel.value = pol[1] != null ? String(pol[1]) : GRID_NONE;
+  }
+  gridRef = null;
+  renderGridHeatmap();
+}
+
+// Rebuild the facet / reference / page controls for the axes still free. Option
+// lists are rewritten only when their content actually changes, so re-rendering
+// (a resize re-runs the whole draw) doesn't fight the user's open dropdown.
+function syncGridControls(xi, yi, fg) {
+  const AX = allAxes();
+  const setOpts = (el, html) => {
+    if (el.dataset.sig !== html) { el.dataset.sig = html; el.innerHTML = html; }
+  };
+  const free = policyAxisIndices().filter(i => i !== xi && i !== yi);
+  const facetOpts = `<option value="${GRID_NONE}">(none)</option>` +
+    free.map(i => `<option value="${AX[i].id}">${AX[i].label}</option>`).join('');
+  const fcol = document.getElementById('grid-fcol');
+  const frow = document.getElementById('grid-frow');
+  setOpts(fcol, facetOpts);
+  setOpts(frow, facetOpts);
+  const ci = facetIndex('col', xi, yi), ri = facetIndex('row', xi, yi);
+  fcol.value = ci >= 0 ? AX[ci].id : GRID_NONE;
+  frow.value = ri >= 0 ? AX[ri].id : GRID_NONE;
+  // A policy axis on X/Y already lays the policies out — nothing left to facet.
+  fcol.disabled = frow.disabled = fg.merged || !free.length;
+
+  // Reference: one option per filled facet cell, named by its facet coordinates.
+  const refEl = document.getElementById('grid-ref');
+  const opts = [`<option value="${GRID_NONE}">(none)</option>`];
+  if (!fg.merged && (fg.colAx || fg.rowAx)) {
+    fg.cells.forEach((row, r) => row.forEach((cell, c) => {
+      if (!cell) return;
+      const parts = [];
+      if (fg.colAx) parts.push(`${fg.colAx.label}=${fg.colVals[c]}`);
+      if (fg.rowAx) parts.push(`${fg.rowAx.label}=${fg.rowVals[r]}`);
+      opts.push(`<option value="${c}:${r}">${parts.join(' · ')}</option>`);
+    }));
+  }
+  setOpts(refEl, opts.join(''));
+  refEl.disabled = opts.length < 2;
+  refEl.value = gridRef ? `${gridRef.c}:${gridRef.r}` : GRID_NONE;
+  if (refEl.selectedIndex < 0) { refEl.value = GRID_NONE; gridRef = null; }
+
+  const btn = document.getElementById('grid-summary');
+  btn.textContent = summaryPrev ? '⊟ back to matrix' : '⊞ collapse to summary';
+  btn.style.display = policyAxisIndices().length ? '' : 'none';
+
+  // Pages: every policy axis neither laid out nor faceted. Pooled by default —
+  // the chips make that visible and let one value be isolated in a click.
+  const paged = policyAxisIndices().filter(i => !fg.used.has(AX[i].name));
+  document.getElementById('grid-pages').innerHTML = paged.map(i => {
+    const a = AX[i];
+    const chips = a.values.map((v, vi) => {
+      const on = pageSel[a.name] === String(v) ? ' on' : '';
+      return `<button class="pol-chip${on}" onclick="onPageChip(${i}, ${vi})">${v}</button>`;
+    }).join('');
+    const pooled = pageSel[a.name] ? '' : ' on';
+    return `<span class="pol-attr"><span>${a.label}</span>` +
+           `<button class="pol-chip${pooled}" onclick="onPageChip(${i}, -1)" ` +
+           `title="average every value into each panel">pooled</button>${chips}</span>`;
+  }).join('');
+}
+
+// Marginalize: average the per-cell metric over every axis except (xi, yi),
+// pooling the given policies. yi < 0 collapses to a single row (X axis only).
+const AX_CELL = -1;      // randomization axis: the index comes from the cell
+const AX_MISSING = -2;   // this policy's config has no such attribute
+function pivotCells(pols, xi, yi, metricKey) {
+  const AX = allAxes(), nGrid = nGridAxes();
+  const polIdx = (p, i) => {
+    if (i < 0 || i < nGrid) return AX_CELL;
+    const ax = AX[i], v = attrValue(p, ax.name);
+    const k = ax.values.findIndex(x => String(x) === v);
+    return k < 0 ? AX_MISSING : k;
+  };
+  const nx = axisLen(xi), ny = yi < 0 ? 1 : axisLen(yi);
   const sum = Array.from({length: ny}, () => new Float64Array(nx));
   const cnt = Array.from({length: ny}, () => new Float64Array(nx));
-  for (let c = 0; c < metric.length; c++) {
-    if (metric[c] == null) continue;   // empty sampled bin — don't poison the mean
-    const ix = ci[c][xi], iy = yi < 0 ? 0 : ci[c][yi];
-    sum[iy][ix] += metric[c]; cnt[iy][ix] += 1;
-  }
+  pols.forEach(p => {
+    const px = polIdx(p, xi), py = polIdx(p, yi);
+    if (px === AX_MISSING || py === AX_MISSING) return;   // not on this axis
+    const metric = p[metricKey], ci = p.cell_index;
+    for (let c = 0; c < metric.length; c++) {
+      if (metric[c] == null) continue;   // empty sampled bin — don't poison the mean
+      const ix = px === AX_CELL ? ci[c][xi] : px;
+      const iy = yi < 0 ? 0 : (py === AX_CELL ? ci[c][yi] : py);
+      sum[iy][ix] += metric[c]; cnt[iy][ix] += 1;
+    }
+  });
   return sum.map((row, r) =>
     Array.from(row, (v, cc) => (cnt[r][cc] ? v / cnt[r][cc] : null)));
 }
 
-function gridAxisLen(i) {
-  return lastCompareResult.axes[i].values.length;
+// ── panel geometry ───────────────────────────────────────────────────────────
+// A lone panel keeps the axis-length ratio of a single full-pane plot. Once
+// there are several, that ratio would flatten every panel as rows pile up, so
+// faceted panels take the shape of the data instead (an 8×8 grid draws square)
+// and the figure grows as tall as the matrix demands, scrolling in #cmp-chart.
+// Interior ticks are dropped in facet mode — only the bottom row carries x ticks
+// and only the left column y ticks — which is what pays for the extra columns.
+const GRID_MARGIN = {l: 55, r: 88, t: 40, b: 48};   // r houses the colorbar
+const GRID_GAP_X = 62;   // px between columns — the right panel's y ticks + title
+const GRID_GAP_Y = 54;   // px between rows — x ticks + the next panel's title
+const FACET_GAP_X = 20;  // interior y ticks are suppressed, so panels sit close
+const FACET_GAP_Y = 30;
+const FACET_HEAD_TOP = 16;    // band holding the column-facet values
+const FACET_HEAD_LEFT = 24;   // band holding the row-facet values (rotated)
+const MAX_PANEL_W = 460;      // a 1-column matrix shouldn't grow a page tall
+const gridPlotCfg = {responsive: false, displayModeBar: false};
+let gridSizedFor = {w: 0, h: 0};   // pane size the current figure was built for
+
+function gridGeometry(cols, rows, opt) {
+  const {nx, ny, gapX, gapY, headTop, headLeft} = opt;
+  const el = document.getElementById('cmp-chart');
+  const rawW = el.clientWidth, rawH = el.clientHeight;
+  const W0 = Math.max(420, rawW);
+  const H0 = Math.max(300, rawH);
+  const m = {l: GRID_MARGIN.l + headLeft, r: GRID_MARGIN.r,
+             t: GRID_MARGIN.t + headTop, b: GRID_MARGIN.b};
+  const single = cols === 1 && rows === 1;
+  // One panel: fill the pane, exactly as the single-policy view always has.
+  // Several: shape them like the cell grid they hold, clamped so a 1×N sweep
+  // stays a readable strip rather than a hairline or a tower.
+  const ratio = single ? (W0 - m.l - m.r) / (H0 - m.t - m.b)
+                       : Math.min(4, Math.max(0.55, nx / Math.max(1, ny)));
+  const availW = W0 - m.l - m.r - gapX * (cols - 1);
+  const panelW = single ? availW : Math.min(availW / cols, MAX_PANEL_W);
+  const panelH = panelW / ratio;
+  // Plotly domains are fractions of the area inside the margins, and that area
+  // is by construction exactly the panels plus their gaps.
+  const spanW = panelW * cols + gapX * (cols - 1);
+  const spanH = panelH * rows + gapY * (rows - 1);
+  return {
+    rawW, rawH, panelW, panelH, spanW, spanH, margin: m,
+    W: m.l + m.r + spanW,
+    figH: m.t + m.b + spanH,
+    xDomain: (col) => {
+      const x0 = col * (panelW + gapX);
+      return [x0 / spanW, (x0 + panelW) / spanW];
+    },
+    // Rows are laid out top-down; Plotly's y fractions run bottom-up.
+    yDomain: (row) => {
+      const top = row * (panelH + gapY);
+      return [1 - (top + panelH) / spanH, 1 - top / spanH];
+    },
+  };
+}
+
+// Null-safe elementwise difference of two pivots (the Δ-vs-reference view).
+function diffPivot(z, zref) {
+  return z.map((row, r) => row.map((v, c) =>
+    (v == null || zref[r][c] == null) ? null : v - zref[r][c]));
 }
 
 function renderGridHeatmap() {
   const result = lastCompareResult;
   if (!result || result.kind !== 'grid_heatmap') return;
-  const axes = result.axes;
+  const axes = allAxes();
   const xi = parseInt(document.getElementById('grid-x').value);
   const ySelVal = document.getElementById('grid-y').value;
   const yi = ySelVal === GRID_NONE ? -1 : parseInt(ySelVal);
-  gridSel = {x: axes[xi].name, y: yi < 0 ? GRID_NONE : axes[yi].name,
+  gridSel = {x: axes[xi].id, y: yi < 0 ? GRID_NONE : axes[yi].id,
              xIdx: xi, yIdx: yi < 0 ? null : yi};
 
   // The heatmap always colours by success rate for the selected channel; the
@@ -2530,90 +3829,238 @@ function renderGridHeatmap() {
   if (!pols.length) {
     Plotly.purge('cmp-chart');
     document.getElementById('cmp-chart').innerHTML =
-      '<div class="empty" style="padding:20px;color:var(--muted)">No grid data.</div>';
+      '<div class="cmp-placeholder">No grid data.</div>';
+    return;
+  }
+  clearChartPlaceholder();
+
+  // Category ticks are drawn verbatim, so round numeric sweep values to 2 dp for
+  // the label — a geometric axis (e.g. target frequency) otherwise prints values
+  // like 0.7071068. Policy ticks are already strings and pass through untouched.
+  const fmtTick = v => typeof v === 'number' && isFinite(v) ? v.toFixed(2) : v;
+  const xvals = axisTicks(xi).map(fmtTick);
+  const yvals = yi < 0 ? [axes[xi].label] : axisTicks(yi).map(fmtTick);
+
+  const fg = facetGrid(pols, xi, yi);
+  syncGridControls(xi, yi, fg);
+  const faceted = !!(fg.colAx || fg.rowAx);
+  const rows = fg.cells.length, cols = fg.colVals.length;
+
+  // Every slot gets a subplot in facet mode — an empty one keeps the matrix
+  // aligned under its headers. The per-policy flow just skips its trailing hole.
+  const slots = [];
+  fg.cells.forEach((row, r) => row.forEach((cell, c) => {
+    if (!cell && !faceted) return;
+    slots.push({r, c, cell, n: slots.length + 1});
+  }));
+  if (!slots.some(s => s.cell)) {
+    Plotly.purge('cmp-chart');
+    document.getElementById('cmp-chart').innerHTML =
+      '<div class="cmp-placeholder">No policies match the current page selection.</div>';
+    document.getElementById('cmp-dl').disabled = true;
+    document.getElementById('cmp-dl-data').disabled = true;
     return;
   }
 
-  const xvals = axes[xi].values;
-  const yvals = yi < 0 ? [axes[xi].label] : axes[yi].values;
-  const zByPolicy = pols.map(p => pivotGrid(p, xi, yi, 'success'));
-  const meanByPolicy = pols.map(p => pivotGrid(p, xi, yi, 'mean'));
+  slots.forEach(s => {
+    if (!s.cell) return;
+    s.z = pivotCells(s.cell.pols, xi, yi, 'success');
+    s.mean = pivotCells(s.cell.pols, xi, yi, 'mean');
+  });
+  // Δ mode: every panel is shown as its difference from the reference cell, on a
+  // diverging scale centred at 0 — "did raising kp help, and where", instead of
+  // two viridis panels held side by side.
+  const ref = gridRef && fg.cells[gridRef.r] && fg.cells[gridRef.r][gridRef.c]
+    ? slots.find(s => s.r === gridRef.r && s.c === gridRef.c) : null;
+  const refName = ref ? [
+    fg.colAx ? `${fg.colAx.label}=${fg.colVals[ref.c]}` : '',
+    fg.rowAx ? `${fg.rowAx.label}=${fg.rowVals[ref.r]}` : '',
+  ].filter(Boolean).join(' · ') : '';
+  if (ref) slots.forEach(s => { if (s.cell) s.dz = diffPivot(s.z, ref.z); });
 
-  // Shared colour range so subplots are comparable. Success is fixed 0–100;
-  // an open-ended metric (mean) is scaled to the data across all policies.
-  let zmin = metricDef.zmin, zmax = metricDef.zmax;
+  // Shared colour range so subplots are comparable. Success is fixed 0–100; an
+  // open-ended metric (mean) is scaled to the data across all panels, and a Δ is
+  // symmetric about 0 so equal gains and losses read equally strong.
+  const zKey = ref ? 'dz' : 'z';
+  let zmin = ref ? null : metricDef.zmin, zmax = ref ? null : metricDef.zmax;
   if (zmin == null || zmax == null) {
     let lo = Infinity, hi = -Infinity;
-    zByPolicy.forEach(z => z.forEach(row => row.forEach(v => {
+    slots.forEach(s => (s[zKey] || []).forEach(row => row.forEach(v => {
       if (v == null) return; if (v < lo) lo = v; if (v > hi) hi = v;
     })));
     if (lo === Infinity) { lo = 0; hi = 1; }
+    if (ref) { const m = Math.max(Math.abs(lo), Math.abs(hi)) || 1; lo = -m; hi = m; }
     zmin = zmin == null ? lo : zmin;
     zmax = zmax == null ? hi : zmax;
   }
 
-  const cols = Math.min(pols.length, 3);
-  const rows = Math.ceil(pols.length / cols);
+  const geo = gridGeometry(cols, rows, {
+    nx: xvals.length, ny: yvals.length,
+    gapX: faceted ? FACET_GAP_X : GRID_GAP_X,
+    gapY: faceted ? FACET_GAP_Y : GRID_GAP_Y,
+    headTop: fg.colAx ? FACET_HEAD_TOP : 0,
+    headLeft: fg.rowAx ? FACET_HEAD_LEFT : 0,
+  });
   const xTitle = axes[xi].label;
   const yTitle = yi < 0 ? '' : axes[yi].label;
+  const zLabel = ref ? `Δ ${metricDef.label}` : metricDef.label;
+  const blank = yvals.map(() => xvals.map(() => null));
+  const firstFilled = slots.find(s => s.cell);
   const traces = [], annotations = [];
-  pols.forEach((p, i) => {
-    const n = i + 1;                       // Plotly axis suffix (x/y, x2/y2, …)
-    const ax = n === 1 ? '' : String(n);
+  slots.forEach((s) => {
+    const n = s.n;                         // Plotly axis suffix (x/y, x2/y2, …)
+    if (!s.cell) {
+      // Placeholder: no policy trained at this combination. Draws nothing but
+      // keeps the slot's axes — and so the matrix's alignment — in place.
+      traces.push({type: 'heatmap', z: blank, x: xvals, y: yvals,
+                   xaxis: 'x' + n, yaxis: 'y' + n, showscale: false,
+                   hoverinfo: 'skip'});
+      return;
+    }
     traces.push({
-      type: 'heatmap', z: zByPolicy[i], x: xvals, y: yvals,
-      customdata: meanByPolicy[i],
+      type: 'heatmap', z: ref ? s.dz : s.z, x: xvals, y: yvals,
+      // Under a reference the raw rate rides along in the tooltip, so a panel
+      // still says what it scored, not only how far it moved.
+      customdata: s.mean.map((row, r) => row.map((m, c) => [s.z[r][c], m])),
       xaxis: 'x' + n, yaxis: 'y' + n,
-      zmin, zmax, colorscale: 'Viridis', zsmooth: false,
+      // What centres the diverging scale on 0 is the symmetric zmin/zmax below —
+      // `zmid` is ignored once those are given (it only acts when zauto is on).
+      zmin, zmax, colorscale: ref ? 'RdBu' : 'Viridis', zsmooth: false,
       xgap: 1, ygap: 1,
-      showscale: i === pols.length - 1,
-      colorbar: {title: {text: metricDef.label, side: 'right', font: {size: 10}},
-                 thickness: 12, len: 0.9, tickfont: {size: 9}},
+      showscale: s === firstFilled,
+      // Pinned in pixels to the top-right: a fraction-of-figure length would
+      // stretch into a full-height bar once the figure grows past the pane.
+      colorbar: {title: {text: zLabel, side: 'right', font: {size: 10}},
+                 thickness: 12, tickfont: {size: 9},
+                 lenmode: 'pixels', len: Math.min(240, geo.panelH),
+                 x: 1.005, xanchor: 'left', y: 1, yanchor: 'top'},
       hovertemplate:
         `${xTitle}: %{x}<br>` +
         (yi < 0 ? '' : `${yTitle}: %{y}<br>`) +
-        `${metricDef.label}: %{z:.3g}<br>` +
-        `${meanLabel}: %{customdata:.3g}<extra></extra>`,
+        (ref ? `Δ: %{z:+.3g}<br>${metricDef.label}: %{customdata[0]:.3g}<br>`
+             : `${metricDef.label}: %{z:.3g}<br>`) +
+        `${meanLabel}: %{customdata[1]:.3g}<extra></extra>`,
     });
-    annotations.push({
-      text: `${p.label} (n=${p.n_seeds})`,
-      xref: 'x' + n + ' domain', yref: 'y' + n + ' domain',
-      x: 0.5, y: 1.0, yanchor: 'bottom', showarrow: false,
-      font: {size: 10, color: '#e5e7eb'},
-    });
+    if (faceted) {
+      // Faceted panels are named by their position on the bands, so all a panel
+      // carries is how much data stands behind it (and the reference marker).
+      annotations.push({
+        text: s === ref ? `${s.cell.badge} · reference` : s.cell.badge,
+        xref: 'x' + n + ' domain', yref: 'y' + n + ' domain',
+        x: 1, y: 1, xanchor: 'right', yanchor: 'bottom', yshift: 1,
+        showarrow: false, font: {size: 8, color: s === ref ? '#93c5fd' : '#6b7280'},
+      });
+    } else {
+      annotations.push({
+        text: s.cell.title,
+        xref: 'x' + n + ' domain', yref: 'y' + n + ' domain',
+        x: 0.5, y: 1.0, yanchor: 'bottom', showarrow: false,
+        font: {size: 10, color: '#e5e7eb'},
+      });
+    }
   });
+
+  // Facet values, written once per band instead of once per panel: reading along
+  // a band is the comparison that band's knob makes.
+  if (fg.colAx) {
+    fg.colVals.forEach((v, c) => {
+      const s = slots.find(t => t.r === 0 && t.c === c);
+      if (!s) return;
+      annotations.push({
+        text: `${fg.colAx.label} = ${v}`,
+        xref: 'x' + s.n + ' domain', x: 0.5,
+        yref: 'paper', y: 1, yanchor: 'bottom', yshift: 12,
+        showarrow: false, font: {size: 11, color: '#e5e7eb'},
+      });
+    });
+  }
+  if (fg.rowAx) {
+    // paper x = 0 is the left edge of the panels; step back into the band the
+    // geometry reserved for these labels (margin is in px, paper is a fraction).
+    const xHead = -(geo.margin.l - 12) / geo.spanW;
+    fg.rowVals.forEach((v, r) => {
+      const s = slots.find(t => t.c === 0 && t.r === r);
+      if (!s) return;
+      annotations.push({
+        text: `${fg.rowAx.label} = ${v}`,
+        yref: 'y' + s.n + ' domain', y: 0.5,
+        xref: 'paper', x: xHead, xanchor: 'center', yanchor: 'middle',
+        textangle: -90, showarrow: false, font: {size: 11, color: '#e5e7eb'},
+      });
+    });
+  }
 
   const thrNote = result.channel
     ? `${result.channel} · thr ${(+result.threshold).toPrecision(3)}`
     : '';
+  const title = (ref ? `Grid — ${zLabel} vs ${refName}` : `Grid — ${metricDef.label}`)
+    + (thrNote ? '  ·  ' + thrNote : '');
+  const base = basePlotLayout(title);
   const layout = {
-    ...basePlotLayout(`Grid — ${metricDef.label}${thrNote ? '  ·  ' + thrNote : ''}`),
-    grid: {rows, columns: cols, pattern: 'independent', xgap: 0.12, ygap: 0.2},
-    margin: {l: 55, r: 20, t: 40, b: 48},
+    ...base,
+    // Pinned to the very top of the figure so the column-facet band can sit
+    // directly above the panels without the two colliding.
+    title: {...base.title, yref: 'container', y: 1, yanchor: 'top', pad: {t: 6}},
+    // No `grid`: it splits the paper evenly, so extra rows just flatten every
+    // panel. Explicit domains (below) hold each panel to the shape it should be.
+    margin: geo.margin,
+    width: geo.W, height: geo.figH, autosize: false,
     showlegend: false,
     annotations,
   };
-  // Per-subplot axis titles (only the outer edges, to keep it uncluttered).
-  pols.forEach((p, i) => {
-    const n = i + 1;
-    const col = i % cols, row = Math.floor(i / cols);
+  // Per-subplot domain + axis titles. Titles ride on the outer edges only, and
+  // in facet mode so do the tick labels — every panel spans the same axes, so
+  // repeating them per panel only spends the width the columns need. Domains are
+  // fractions of the area inside the margins, exactly what gridGeometry laid the
+  // panels out over.
+  slots.forEach((s) => {
+    const n = s.n, bottom = s.r === rows - 1, left = s.c === 0;
     layout['xaxis' + (n === 1 ? '' : n)] = {
-      title: {text: row === rows - 1 ? xTitle : '', font: {size: 10}},
+      title: {text: bottom ? xTitle : '', font: {size: 10}},
       gridcolor: '#374151', tickfont: {size: 9}, zeroline: false,
+      showticklabels: faceted ? bottom : true,
+      // Every sampled value gets an equal band, not a gap-scaled numeric
+      // position: a log2/geometric axis (e.g. target frequency) would otherwise
+      // give bricks of different heights. Category keeps all cells the same size
+      // while the tick labels still read out the real values.
+      type: 'category',
+      domain: geo.xDomain(s.c), anchor: 'y' + n,
     };
     layout['yaxis' + (n === 1 ? '' : n)] = {
-      title: {text: col === 0 && yi >= 0 ? yTitle : '', font: {size: 10}},
+      title: {text: left && yi >= 0 ? yTitle : '', font: {size: 10}},
       gridcolor: '#374151', tickfont: {size: 9}, zeroline: false,
-      showticklabels: yi >= 0,
+      showticklabels: yi >= 0 && (faceted ? left : true),
+      type: 'category',
+      domain: geo.yDomain(s.r), anchor: 'x' + n,
     };
   });
 
-  Plotly.react('cmp-chart', traces, layout, plotCfg);
+  gridSizedFor = {w: geo.rawW, h: geo.rawH};
+  // responsive:true would stretch the svg back to the container on resize and
+  // undo the explicit height; resizeCompareChart re-derives the geometry instead.
+  Plotly.react('cmp-chart', traces, layout, gridPlotCfg);
   document.getElementById('cmp-dl').disabled = false;
   document.getElementById('cmp-dl-data').disabled = false;
-  const g = document.getElementById('grid-hint');
-  const extra = axes.filter((_, k) => k !== xi && (yi < 0 || k !== yi));
-  g.textContent = extra.length ? 'averaged over ' + extra.map(a => a.name).join(', ') : '';
+
+  // What the panels hide: the unshown randomization axes always, plus every
+  // policy knob that is neither laid out, faceted, nor pinned to a page.
+  const laid = new Set([xi, yi].filter(k => k >= 0).map(k => axes[k].name));
+  const avg = axes.filter(a => {
+    if (laid.has(a.name)) return false;
+    if (a.group === 'grid') return true;
+    if (fg.merged) return true;
+    if ((fg.colAx && fg.colAx.name === a.name) || (fg.rowAx && fg.rowAx.name === a.name)) return false;
+    return !pageSel[a.name];
+  });
+  const pinned = axes.filter(a =>
+    a.group === 'policy' && pageSel[a.name] && !fg.used.has(a.name));
+  const parts = [];
+  if (avg.length) parts.push('averaged over ' + avg.map(a => a.name).join(', '));
+  if (pinned.length) parts.push('showing ' +
+    pinned.map(a => `${a.label} = ${pageSel[a.name]}`).join(', '));
+  if (ref) parts.push(`Δ vs ${refName}`);
+  document.getElementById('grid-hint').textContent = parts.join('  ·  ');
+  saveViewState();   // the pivot is part of the view this dataset comes back to
   setTimeout(resizeCompareChart, 0);
 }
 

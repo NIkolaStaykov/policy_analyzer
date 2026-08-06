@@ -5,20 +5,30 @@ group gets a clean CUDA context. The parent sets CUDA_VISIBLE_DEVICES in this
 process's environment *before* Python starts, which is the only reliable way to
 pin JAX to a specific GPU.
 
-All seeds of the group run in a single vmapped pass (shared JIT compile), then
-each seed's artifacts are written to its own directory `<out-base>/<tag>_<seed>`
-where tag is "det" or "sto". A `DONE` sentinel is touched once a seed's artifacts
-are complete, so the server can mark seeds done progressively.
+Every rollout of the group runs in a single vmapped pass (shared JIT compile),
+then each one's artifacts are written to its own directory `<out-base>/<name>`.
+A `DONE` sentinel is touched once a rollout's artifacts are complete, so the
+server can mark them done progressively.
+
+Two ways to choose the episodes:
+  - sampled (default): one rollout per seed, every randomized quantity drawn as
+    it is in training. Names are `<tag>_<seed>`, tag being "det" or "sto".
+  - pinned (--pins): one rollout per (grid cell, seed), with the selected axes
+    held at that cell's values — the same pinning grid_collect uses, so a
+    rollout here is the episode the grid scored at that cell. The file carries
+    the resolved axes, the cells and the rollout names, all decided by the
+    server (which resolves axis values without importing JAX).
 
 Exit codes:
-    0   all seeds completed, artifacts written
+    0   all rollouts completed, artifacts written
     75  out-of-memory (EX_TEMPFAIL) — parent should requeue after VRAM frees up
     1   any other failure (stderr carries the traceback)
 
 Usage:
     python -m policy_analyzer.collect_one \
         --log-dir logs/<run> --out-base analysis/sessions/<sid> \
-        --seeds 1,2,3 [--deterministic] [--checkpoint-step 1000000]
+        --seeds 1,2,3 [--deterministic] [--checkpoint-step 1000000] \
+        [--pins analysis/sessions/<sid>/pins.json]
 """
 
 from __future__ import annotations
@@ -37,8 +47,13 @@ def main() -> int:
     ap.add_argument("--seeds", required=True, help="comma-separated seed ints")
     ap.add_argument("--deterministic", action="store_true")
     ap.add_argument("--checkpoint-step", default=None)
+    ap.add_argument("--pins", default=None,
+                    help="JSON file {axes, cells, names}: run one rollout per "
+                         "(cell, seed) with those axes pinned, instead of "
+                         "sampling every episode parameter")
     args = ap.parse_args()
 
+    import json
     from pathlib import Path
 
     # Heavy imports (JAX etc.) happen here, after CUDA_VISIBLE_DEVICES is set.
@@ -49,6 +64,7 @@ def main() -> int:
     out_base = Path(args.out_base)
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()]
     tag = "det" if args.deterministic else "sto"
+    pins = json.loads(Path(args.pins).read_text()) if args.pins else None
 
     try:
         ckpt = args.checkpoint_step
@@ -56,15 +72,24 @@ def main() -> int:
             ckpt = None
 
         handles = collect.restore_policy(log_dir, checkpoint_step=ckpt)
-        rollouts = collect.run_batched_rollout(
-            handles, seeds, deterministic=args.deterministic
-        )
+        if pins:
+            from policy_analyzer import grid_collect
+            rollouts = grid_collect.run_pinned_rollouts(
+                handles, pins["axes"], pins["cells"], seeds,
+                deterministic=args.deterministic,
+            )
+            names = pins["names"]
+        else:
+            rollouts = collect.run_batched_rollout(
+                handles, seeds, deterministic=args.deterministic
+            )
+            names = [f"{tag}_{seed}" for seed in seeds]
 
-        # Load the render env once and reuse it across all seeds.
+        # Load the render env once and reuse it across all rollouts.
         env_name, cfg, env = collect.load_env_from_checkpoint(str(handles["restore_path"]))
 
-        for seed, rollout in zip(seeds, rollouts):
-            out_dir = out_base / f"{tag}_{seed}"
+        for name, rollout in zip(names, rollouts):
+            out_dir = out_base / name
             collect.write_artifacts(out_dir, rollout)
             visualize.visualize_input_distributions(out_dir, schema=rollout["schema"])
             visualize.visualize_dof_evolution(out_dir, schema=rollout["schema"])

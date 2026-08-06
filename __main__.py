@@ -10,7 +10,7 @@ an OOM exit requeues the rollout until memory frees up. The server process itsel
 never imports JAX.
 
 API:
-    GET    /api/policies              list available training runs
+    GET    /api/policies              training runs + per-task config facets
     GET    /api/checkpoints?run=NAME  list checkpoint steps for a run
     POST   /api/sessions              start a session {run, checkpoint_step, n_det, n_sto}
     GET    /api/sessions              list all known sessions (newest first)
@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import collections.abc
 import hashlib
 import http.server
 import json
@@ -38,6 +39,7 @@ import time
 import urllib.parse
 from pathlib import Path
 
+from policy_analyzer import run_metrics
 from policy_analyzer.paths import ANALYSIS_DIR, LOGS_DIR, PKG_DIR
 from policy_analyzer.session import RolloutInfo, Session
 from policy_analyzer.worker import _free_vram_gb, MIN_FREE_VRAM_GB
@@ -48,6 +50,14 @@ _APP_ASSETS = Path(__file__).parent / "assets"
 _MAX_OOM_RETRIES = 10
 _EXIT_OOM = 75            # collect_one EX_TEMPFAIL exit code
 _SCHED_POLL_SECS = 1.0    # scheduler tick interval
+# Rollouts one analysis may hold (cells × repeats). Each keeps its full
+# trajectory plus a rendered video — ~8 MB — and the point of this tab is to
+# look at each one, not to average over thousands. A wide sweep belongs in the
+# Multi-policy tab, which stores per-step channels only.
+MAX_SESSION_ROLLOUTS = 24
+# Cockpit metrics only move while a queue is training, and an incremental
+# refresh costs a couple of requests, so a few minutes is plenty.
+_METRICS_REFRESH_SECS = 300.0
 
 # How many eval subprocesses share a GPU is decided from measured free VRAM, not
 # a fixed count — so the pool shrinks automatically when training or anything
@@ -84,6 +94,25 @@ def _list_policies(logs_dir: Path) -> list[dict]:
         env = d.name[: m.start()] if m else d.name
         result.append({"name": d.name, "env": env, "n_checkpoints": len(steps)})
     return sorted(result, key=lambda r: r["name"], reverse=True)
+
+
+def _env_of_run(run_name: str) -> str:
+    """The env a run trained on, from the name (`<Env>-<date>-<suffix>`)."""
+    m = re.search(r"-\d{8}-", run_name)
+    return run_name[: m.start()] if m else run_name
+
+
+def _rollout_ids(tag: str, axes: list, cells: list, seeds) -> list[tuple]:
+    """(name, cell, seed) for one group, in the order collect_one runs them.
+
+    Cell-major, seeds within a cell — the batch layout of
+    grid_collect.run_pinned_rollouts, so the names line up with its output
+    element for element. Without a sweep the name stays `<tag>_<seed>`, which is
+    what the historical artifact directories are called.
+    """
+    if not axes:
+        return [(f"{tag}_{s}", 0, s) for s in seeds]
+    return [(f"{tag}_c{c}_{s}", c, s) for c in range(len(cells)) for s in seeds]
 
 
 def _list_checkpoints(log_dir: Path) -> list[str]:
@@ -194,6 +223,42 @@ def _collect_progress(run_name: str, mode: str, benchmark: str) -> str | None:
     return f"cell {c}/{n}"
 
 
+class _LazyChannels(collections.abc.Mapping):
+    """The npz's channel arrays, decompressed only when actually asked for.
+
+    A cache carries every recorded channel (~26 for the pinch env, ~10 MB each
+    once inflated), but a view reads one — the success channel — plus at most a
+    couple of binning channels. Materializing the whole file per seed cost more
+    than the entire rest of the request, and it scaled with the *dataset*, not
+    with the subset on screen. Keys are known up front from `_channels`, so
+    membership and listing stay free; only __getitem__ touches the zip.
+    """
+
+    __slots__ = ("_path", "_names", "_memo")
+
+    def __init__(self, path, names):
+        self._path = path
+        self._names = list(names)
+        self._memo: dict = {}
+
+    def __iter__(self):
+        return iter(self._names)
+
+    def __len__(self):
+        return len(self._names)
+
+    def __getitem__(self, name):
+        if name not in self._memo:
+            if name not in self._names:
+                raise KeyError(name)
+            import numpy as np
+            # Re-opening reads only the zip's central directory (~3 ms); it beats
+            # holding 130 file handles open across a request.
+            with np.load(self._path, allow_pickle=False) as z:
+                self._memo[name] = z[name]
+        return self._memo[name]
+
+
 def _load_compare_cache(run_name: str, mode: str, benchmark: str) -> dict | None:
     """Load a cached eval npz into {channels, n_rollouts, env_name, sensor_bundle}."""
     import numpy as np
@@ -201,16 +266,16 @@ def _load_compare_cache(run_name: str, mode: str, benchmark: str) -> dict | None
     if not p.exists():
         return None
     try:
-        z = np.load(p, allow_pickle=False)
-        names = [str(n) for n in z["_channels"]]
-        return {
-            "channels": {n: z[n] for n in names},
-            "n_rollouts": int(z["_n_rollouts"]),
-            "env_name": str(z["_env_name"]),
-            "sensor_bundle": str(z["_sensor_bundle"]),
-            # Older caches predate _dt; None disables seconds→steps conversion.
-            "dt": float(z["_dt"]) if "_dt" in z.files else None,
-        }
+        with np.load(p, allow_pickle=False) as z:
+            names = [str(n) for n in z["_channels"]]
+            return {
+                "channels": _LazyChannels(p, names),
+                "n_rollouts": int(z["_n_rollouts"]),
+                "env_name": str(z["_env_name"]),
+                "sensor_bundle": str(z["_sensor_bundle"]),
+                # Older caches predate _dt; None disables seconds→steps conversion.
+                "dt": float(z["_dt"]) if "_dt" in z.files else None,
+            }
     except Exception:
         return None
 
@@ -226,17 +291,17 @@ def _load_grid_cache(run_name: str, mode: str, benchmark: str = GRID_BENCHMARK) 
     if not p.exists():
         return None
     try:
-        z = np.load(p, allow_pickle=False)
-        names = [str(n) for n in z["_channels"]]
-        return {
-            "channels": {n: z[n] for n in names},
-            "axes": json.loads(str(z["_grid_axes"])),
-            "cell_values": z["_cell_values"],
-            "n_rollouts": int(z["_n_rollouts"]),
-            "env_name": str(z["_env_name"]),
-            "sensor_bundle": str(z["_sensor_bundle"]),
-            "dt": float(z["_dt"]),
-        }
+        with np.load(p, allow_pickle=False) as z:
+            names = [str(n) for n in z["_channels"]]
+            return {
+                "channels": _LazyChannels(p, names),
+                "axes": json.loads(str(z["_grid_axes"])),
+                "cell_values": z["_cell_values"],
+                "n_rollouts": int(z["_n_rollouts"]),
+                "env_name": str(z["_env_name"]),
+                "sensor_bundle": str(z["_sensor_bundle"]),
+                "dt": float(z["_dt"]),
+            }
     except Exception:
         return None
 
@@ -263,6 +328,7 @@ def _load_compare_policies(policies: list, mode: str, benchmark: str) -> list:
             cmp_policies.append({
                 "label": pol.get("label", ""),
                 "sensor_bundle": pol.get("sensor_bundle", ""),
+                "attrs": _policy_attrs(pol),
                 "seeds": seeds,
             })
     return cmp_policies
@@ -279,13 +345,156 @@ def _load_run_config(run_name: str) -> dict | None:
         return None
 
 
+# ── policy attributes (the config knobs a dataset's policies differ by) ───────
+#
+# The policies in a dataset differ by whatever the sweep varied — PD gains, a
+# sensor bundle, a reward weight. That lives in each run's checkpoints/config.json,
+# so we read one config per policy, keep its scalar leaves, and offer every key
+# that actually varies as a heatmap axis. Nothing is hardcoded per env: a dataset
+# gets exactly the axes its own sweep turned.
+
+POLICY_AXIS_MAX_VALUES = 24   # beyond this a key is a per-run detail, not an axis
+
+_policy_attr_cache: dict[tuple, dict] = {}   # run_names -> attrs (configs are immutable)
+
+
+def _flat_scalars(cfg: dict, prefix: str = "") -> dict:
+    """Config leaves as {dotted key: scalar}; list/dict values are dropped."""
+    out: dict = {}
+    for k, v in cfg.items():
+        if isinstance(v, dict):
+            out.update(_flat_scalars(v, f"{prefix}{k}."))
+        elif isinstance(v, (int, float, str, bool)):
+            out[f"{prefix}{k}"] = v
+    return out
+
+
+def _policy_attrs(pol: dict) -> dict:
+    """One policy's config knobs, from its first seed with a readable config.
+
+    Seeds of a policy differ only in their RNG seed, so any one of them carries
+    the policy's settings.
+    """
+    key = tuple(pol.get("run_names", []))
+    if key in _policy_attr_cache:
+        return _policy_attr_cache[key]
+    attrs: dict = {}
+    for run_name in key:
+        cfg = _load_run_config(run_name)
+        if cfg:
+            attrs = _flat_scalars(cfg)
+            attrs.setdefault("sensor_bundle", pol.get("sensor_bundle", ""))
+            break
+    _policy_attr_cache[key] = attrs
+    return attrs
+
+
+_run_attr_cache: dict[str, dict] = {}   # run name -> config scalars (immutable)
+
+
+def _run_attrs(logs_dir: Path, run_name: str) -> dict:
+    """One run's config knobs as {dotted key: scalar}; empty if unreadable."""
+    if run_name not in _run_attr_cache:
+        path = logs_dir / run_name / "checkpoints" / "config.json"
+        try:
+            cfg = json.loads(path.read_text())
+        except Exception:  # noqa: BLE001 — an unreadable config is just no attrs
+            cfg = {}
+        _run_attr_cache[run_name] = _flat_scalars(cfg)
+    return _run_attr_cache[run_name]
+
+
+def _policies_payload(logs_dir: Path) -> dict:
+    """Runs, plus per task the config knobs that vary across that task's runs.
+
+    The picker filters ~900 runs by task, config value and free text, so every
+    run ships the knobs its own task turned. Config keys constant across a task
+    are dropped: they can't narrow anything and they triple the payload. The
+    facets are the same axes the multi-policy tab offers, grouped per task
+    rather than per dataset.
+
+    Each run's training result (held-success %, eval reward, status, divergence
+    — see run_metrics) is merged into the same attribute namespace under a
+    "perf." prefix. That is what tells the seeds of one policy apart, and it
+    costs nothing extra in the client: search terms (`perf.success>0.5`) and
+    facet chips work on it exactly as they do on a config knob. Unlike config
+    keys, perf keys survive the trim even when they vary too finely to be a
+    facet — they are the numbers on every row.
+    """
+    policies = _list_policies(logs_dir)
+    metrics = run_metrics.load()
+    by_env: dict[str, list[dict]] = {}
+    for pol in policies:
+        by_env.setdefault(pol["env"], []).append(pol)
+    facets = {}
+    for env, rows in by_env.items():
+        cfg_attrs = [_run_attrs(logs_dir, r["name"]) for r in rows]
+        perf_attrs = [metrics.get(r["name"], {}) for r in rows]
+        axes = _policy_axes([{**c, **p} for c, p in zip(cfg_attrs, perf_attrs)])
+        facets[env] = axes
+        keep = {ax["name"] for ax in axes}
+        for row, cfg, perf in zip(rows, cfg_attrs, perf_attrs):
+            row["attrs"] = {k: v for k, v in cfg.items() if k in keep}
+            row["attrs"].update(perf)
+    return {"policies": policies, "facets": facets}
+
+
+def _is_number(v) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _attr_text(v) -> str:
+    """A non-numeric value as the client sees it (JavaScript's String(v))."""
+    return ("true" if v else "false") if isinstance(v, bool) else str(v)
+
+
+def _policy_axes(attrs_list: list[dict]) -> list[dict]:
+    """Config keys that vary across policies, as selectable heatmap axes.
+
+    A key qualifies when at least two policies carry it and it takes 2..
+    POLICY_AXIS_MAX_VALUES distinct values. The client matches a policy onto an
+    axis by comparing string forms, so a key whose values mix numbers with text
+    is skipped — its two sides would never format alike.
+    """
+    seen: dict[str, list] = {}
+    for attrs in attrs_list:
+        for k, v in attrs.items():
+            seen.setdefault(k, []).append(v)
+    axes = []
+    for name, vals in sorted(seen.items()):
+        if len(vals) < 2:
+            continue
+        numeric = all(_is_number(v) for v in vals)
+        if not numeric and any(_is_number(v) for v in vals):
+            continue
+        uniq = sorted({(float(v) if numeric else _attr_text(v)) for v in vals})
+        if not 2 <= len(uniq) <= POLICY_AXIS_MAX_VALUES:
+            continue
+        axes.append({"name": name, "label": name.split(".")[-1],
+                     "values": uniq, "numeric": numeric})
+    # Two keys can share a last segment (a.gain / b.gain) — spell those out.
+    by_label: dict[str, list] = {}
+    for ax in axes:
+        by_label.setdefault(ax["label"], []).append(ax)
+    for group in by_label.values():
+        if len(group) > 1:
+            for ax in group:
+                ax["label"] = ax["name"]
+    return axes
+
+
 def _compute_view(cmp_policies: list, criterion: dict, visualization: str) -> dict:
     """Render loaded caches as the chosen view — decoupled from how they were
     gathered. Heatmap bins/pools per compute_grid_heatmap (grid cells or sampled
     bins via criterion['heatmap_axes']); curves pool every rollout."""
     from policy_analyzer import success_curve
     if visualization == "heatmap":
-        return success_curve.compute_grid_heatmap(cmp_policies, criterion)
+        result = success_curve.compute_grid_heatmap(cmp_policies, criterion)
+        # Policy axes are derived from the policies that actually made it into
+        # the result, so their values span exactly what the heatmap can show.
+        result["policy_axes"] = _policy_axes(
+            [p.get("attrs", {}) for p in result.get("policies", [])])
+        return result
     return success_curve.compute_curves(cmp_policies, criterion)
 
 
@@ -363,6 +572,101 @@ def _list_datasets() -> list[dict]:
     return sorted(out, key=lambda d: d.get("created", ""), reverse=True)
 
 
+# ── rendered-view cache ───────────────────────────────────────────────────────
+#
+# Rendering a dataset re-reads every seed's npz (a 100-policy grid dataset is
+# ~300 files) and re-scores it — the wait between opening a dataset and seeing
+# anything. The all-policies view is also the one asked for over and over
+# unchanged, since that is what a freshly opened dataset selects, so its
+# finished result is written to disk and replayed on the next request.
+#
+# All-selected views get one file per settings combo: that view is what a
+# freshly opened dataset lands on, so it is asked for over and over unchanged.
+# Every partial selection shares a single "last" slot instead — enough to come
+# back to the view you left a dataset on, without a file per one-off probe.
+
+VIEW_CACHE_DIR = ANALYSIS_DIR / "view_cache"
+
+
+def _view_cache_key(mode: str, benchmark: str, visualization: str,
+                    criterion: dict, labels: list[str]) -> str:
+    """Everything the rendered result depends on, hashed. Mirrors the client's
+    viewSignature() — same settings in, same file out."""
+    canon = json.dumps(
+        {"mode": mode, "benchmark": benchmark, "visualization": visualization,
+         "criterion": criterion, "policies": sorted(labels)},
+        sort_keys=True, default=str,
+    )
+    return hashlib.sha1(canon.encode()).hexdigest()[:16]
+
+
+def _view_cache_stamp(policies: list, mode: str, benchmark: str) -> str:
+    """Fingerprint of the source caches this view was rendered from.
+
+    Re-collecting a seed rewrites its npz under the same path, which leaves the
+    key untouched — so the stamp is stored alongside the result and checked on
+    read. A changed (or vanished) source file misses, and the view is recomputed.
+    """
+    parts = []
+    for pol in policies:
+        for run_name in sorted(pol.get("run_names", [])):
+            p = _compare_cache_path(run_name, mode, benchmark)
+            try:
+                st = p.stat()
+                parts.append(f"{run_name}:{st.st_mtime_ns}:{st.st_size}")
+            except OSError:
+                parts.append(f"{run_name}:missing")
+    return hashlib.sha1("|".join(parts).encode()).hexdigest()[:16]
+
+
+def _view_cache_dir(slug: str) -> Path:
+    # Per-dataset directory so deleting a dataset can drop its views wholesale.
+    # Re-slugified because the slug arrives from the client.
+    return VIEW_CACHE_DIR / _slugify(slug)
+
+
+def _view_cache_path(slug: str, key: str, all_selected: bool) -> Path:
+    # One file per settings combo for the all-selected views; one shared slot,
+    # overwritten, for whatever subset was looked at last.
+    return _view_cache_dir(slug) / (f"{key}.json" if all_selected else "last.json")
+
+
+def _read_view_cache(slug: str, key: str, stamp: str,
+                     all_selected: bool) -> dict | None:
+    p = _view_cache_path(slug, key, all_selected)
+    if not p.exists():
+        return None
+    try:
+        entry = json.loads(p.read_text())
+    except Exception:
+        return None
+    # Both checks matter for the shared slot: it holds one subset's view, so a
+    # different subset (or a re-collect) has to miss rather than read it. Entries
+    # written before the slot existed carry no "key" and are keyed by filename
+    # alone — still valid, so they survive the upgrade rather than all missing.
+    if entry.get("key", key) != key or entry.get("stamp") != stamp:
+        return None
+    return entry.get("result")
+
+
+def _write_view_cache(slug: str, key: str, stamp: str, result: dict,
+                      all_selected: bool) -> None:
+    p = _view_cache_path(slug, key, all_selected)
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        # Write-then-rename: a reader never sees a half-written view, and two
+        # concurrent renders of the same settings can't interleave.
+        tmp = p.with_suffix(f".{os.getpid()}.tmp")
+        tmp.write_text(json.dumps({"key": key, "stamp": stamp, "result": result}))
+        tmp.replace(p)
+    except Exception:
+        pass   # a cache write failing must never fail the render
+
+
+def _drop_view_cache(slug: str) -> None:
+    shutil.rmtree(_view_cache_dir(slug), ignore_errors=True)
+
+
 # ── HTTP handler ──────────────────────────────────────────────────────────────
 
 def _make_handler(server: "AnalysisServer", analysis_dir: Path):
@@ -429,7 +733,7 @@ def _make_handler(server: "AnalysisServer", analysis_dir: Path):
             params = dict(urllib.parse.parse_qsl(parsed.query))
 
             if path == "/api/policies":
-                self._json(_list_policies(server.logs_dir))
+                self._json(_policies_payload(server.logs_dir))
             elif path == "/api/checkpoints":
                 run = params.get("run", "")
                 steps = _list_checkpoints(server.logs_dir / run) if run else []
@@ -520,13 +824,13 @@ def _make_handler(server: "AnalysisServer", analysis_dir: Path):
             if path == "/api/sessions":
                 length = int(self.headers.get("Content-Length", 0))
                 body = json.loads(self.rfile.read(length))
-                sid = server.start_session(
+                self._json(server.start_session(
                     run=body["run"],
                     checkpoint_step=body.get("checkpoint_step", "latest"),
                     n_det=int(body.get("n_det", 0)),
                     n_sto=int(body.get("n_sto", 0)),
-                )
-                self._json({"session_id": sid})
+                    sweep=body.get("sweep") or [],
+                ))
             elif path == "/api/compare":
                 length = int(self.headers.get("Content-Length", 0))
                 body = json.loads(self.rfile.read(length))
@@ -601,7 +905,7 @@ class AnalysisServer:
         self._sensor_bundle_cache: dict[str, str] = {}   # run -> sensor_bundle
 
         analysis_dir.mkdir(parents=True, exist_ok=True)
-        self._load_existing_sessions()
+        self._clear_sessions()
         (analysis_dir / "index.html").write_bytes(_APP_TEMPLATE.read_bytes())
         if _APP_ASSETS.is_dir():
             shutil.copytree(_APP_ASSETS, analysis_dir / "assets", dirs_exist_ok=True)
@@ -610,48 +914,45 @@ class AnalysisServer:
             target=self._scheduler_loop, daemon=True, name="rollout-scheduler"
         )
         self._sched.start()
+        # Training metrics come from the cockpit over HTTP, which is slow enough
+        # cold (~20 s for every queue) that no request may ever wait on it: the
+        # picker reads the snapshot on disk, this thread keeps it fresh.
+        threading.Thread(
+            target=self._metrics_loop, daemon=True, name="run-metrics"
+        ).start()
         print(f"Policy Analyzer ready — {len(self._gpus)} GPU(s): {self._gpus}", flush=True)
+
+    def _metrics_loop(self) -> None:
+        while True:
+            try:
+                idx = run_metrics.refresh()
+                print(f"[metrics] {len(idx)} runs indexed from the cockpit", flush=True)
+            except Exception as exc:  # noqa: BLE001 — a background refresh never dies
+                print(f"[metrics] refresh failed: {exc}", flush=True)
+            time.sleep(_METRICS_REFRESH_SECS)
 
     # ── session loading ───────────────────────────────────────────────────────
 
-    def _load_existing_sessions(self) -> None:
+    def _clear_sessions(self) -> None:
+        """Start every boot with an empty sessions dir.
+
+        A single-policy analysis is working data, not a cache: its artifacts are
+        the videos and rollout pages of one look at one policy, they are a
+        gigabyte per couple of dozen runs, and nothing downstream reads them
+        back. Keeping them across restarts only accumulated stale analyses
+        behind a dropdown — so the directory is a scratch space for the analyses
+        started in this process, wiped on the way up.
+
+        Note this is why the sweep explorer reads compare_cache instead: those
+        npz files ARE a cache (content-addressed by run + mode + grid spec, and
+        shared with the Compare tab), whereas everything under sessions/ is
+        per-look and disposable.
+        """
         sessions_dir = self.analysis_dir / "sessions"
         if not sessions_dir.exists():
             return
-        for d in sorted(sessions_dir.iterdir()):
-            if not d.is_dir():
-                continue
-            sj = d / "session.json"
-            if not sj.exists():
-                continue
-            try:
-                data = json.loads(sj.read_text(encoding="utf-8"))
-                rollouts = [
-                    RolloutInfo(
-                        name=r["name"],
-                        deterministic=r["deterministic"],
-                        seed=r["seed"],
-                        status=(
-                            "error" if r["status"] in ("running", "pending") else r["status"]
-                        ),
-                        error=(
-                            "Server restarted"
-                            if r["status"] in ("running", "pending")
-                            else r.get("error")
-                        ),
-                    )
-                    for r in data["rollouts"]
-                ]
-                sess = Session(
-                    session_id=data["session_id"],
-                    session_dir=d,
-                    run=data["run"],
-                    checkpoint_step=data["checkpoint_step"],
-                    rollouts=rollouts,
-                )
-                self._sessions[data["session_id"]] = sess
-            except Exception:
-                pass
+        for d in sessions_dir.iterdir():
+            shutil.rmtree(d, ignore_errors=True) if d.is_dir() else d.unlink(missing_ok=True)
 
     # ── scheduler ───────────────────────────────────────────────────────────────
 
@@ -832,7 +1133,7 @@ class AnalysisServer:
     def _launch_locked(self, gpu: int, sid: str, det: bool, seeds, sess: Session) -> None:
         """Spawn a collect_one subprocess for a whole group on `gpu`. Caller holds _lock."""
         tag = "det" if det else "sto"
-        names = [f"{tag}_{s}" for s in seeds]
+        names = [n for n, _, _ in _rollout_ids(tag, sess.axes, sess.cells, seeds)]
 
         cmd = [
             sys.executable, "-m", "policy_analyzer.collect_one",
@@ -844,6 +1145,14 @@ class AnalysisServer:
             cmd.append("--deterministic")
         if sess.checkpoint_step and sess.checkpoint_step != "latest":
             cmd += ["--checkpoint-step", sess.checkpoint_step]
+        if sess.axes:
+            # The grid is resolved once, in the request thread; the subprocess
+            # reads it rather than re-deriving values that must match the names
+            # above element for element.
+            pins = sess.session_dir / f"pins_{tag}.json"
+            pins.write_text(json.dumps(
+                {"axes": sess.axes, "cells": sess.cells, "names": names}))
+            cmd += ["--pins", str(pins)]
 
         env = os.environ.copy()
         env["CUDA_VISIBLE_DEVICES"] = str(gpu)
@@ -950,26 +1259,73 @@ class AnalysisServer:
 
     # ── public API ────────────────────────────────────────────────────────────
 
-    def start_session(self, run: str, checkpoint_step: str, n_det: int, n_sto: int) -> str:
+    def resolve_sweep(self, run: str, spec: list) -> dict:
+        """Turn an axis selection into concrete axes + cells, or an error.
+
+        Runs in the request thread: axis values come from the run's config via
+        grid_collect.axes_from_spec, which is numpy-and-stdlib only, so the
+        client can see the exact grid (and any mistake in it) before a GPU is
+        touched.
+        """
+        if not spec:
+            return {"axes": [], "cells": [[]]}
+        cfg = _load_run_config(run)
+        if cfg is None:
+            return {"error": f"no config.json for {run}"}
+        from policy_analyzer import grid_collect
+        try:
+            axes = grid_collect.axes_from_spec(_env_of_run(run), cfg, spec)
+        except ValueError as exc:
+            return {"error": str(exc)}
+        return {"axes": axes, "cells": grid_collect.cell_grid(axes)}
+
+    def start_session(self, run: str, checkpoint_step: str, n_det: int, n_sto: int,
+                      sweep: list | None = None) -> dict:
+        """Queue one analysis: (cells × repeats) rollouts, rendered and analysed.
+
+        With no sweep this is the historical behaviour — n_det + n_sto sampled
+        rollouts. With one, every cell of the grid gets n_det + n_sto rollouts
+        with those axes pinned, and the counts read as repeats per cell.
+        """
+        resolved = self.resolve_sweep(run, sweep or [])
+        if "error" in resolved:
+            return resolved
+        axes, cells = resolved["axes"], resolved["cells"]
+        total = len(cells) * (n_det + n_sto)
+        if total == 0:
+            return {"error": "nothing to run — set a rollout count"}
+        if total > MAX_SESSION_ROLLOUTS:
+            return {"error": (
+                f"{len(cells)} cells × {n_det + n_sto} rollouts = {total}, over the "
+                f"{MAX_SESSION_ROLLOUTS} limit for one analysis. Every rollout here "
+                "keeps its full trajectory and a video (~8 MB), so drop a point or "
+                "a repeat — or sweep it in the Multi-policy tab, which keeps "
+                "per-step channels only and scales to thousands of cells."
+            )}
+
         run_short = run.split("-")[-1] if "-" in run else run
         sid = f"{time.strftime('%Y%m%d-%H%M%S')}-{run_short}"
         session_dir = self.analysis_dir / "sessions" / sid
         session_dir.mkdir(parents=True, exist_ok=True)
 
-        # Each group (det / sto) runs all its seeds in one vmapped pass on one GPU.
+        # Each group (det / sto) runs all its rollouts in one vmapped pass on one
+        # GPU — cells and repeats are both batch dimensions.
         rollouts: list[RolloutInfo] = []
         groups: list[tuple[bool, tuple[int, ...]]] = []
         for det, n, tag in ((True, n_det, "det"), (False, n_sto, "sto")):
             seeds = tuple(range(1, n + 1))
             if not seeds:
                 continue
-            for s in seeds:
-                rollouts.append(RolloutInfo(name=f"{tag}_{s}", deterministic=det, seed=s))
+            for name, cell, seed in _rollout_ids(tag, axes, cells, seeds):
+                params = {ax["name"]: cells[cell][i] for i, ax in enumerate(axes)}
+                rollouts.append(RolloutInfo(
+                    name=name, deterministic=det, seed=seed, params=params))
             groups.append((det, seeds))
 
         sess = Session(
             session_id=sid, session_dir=session_dir,
             run=run, checkpoint_step=checkpoint_step, rollouts=rollouts,
+            axes=axes, cells=cells,
         )
         sess._save()
 
@@ -978,7 +1334,7 @@ class AnalysisServer:
             for det, seeds in groups:
                 self._pending.append((sid, det, seeds))
 
-        return sid
+        return {"session_id": sid}
 
     def _sensor_bundle(self, run: str) -> str | None:
         """sensor_bundle from logs/<run>/checkpoints/config.json (cached)."""
@@ -1171,13 +1527,26 @@ class AnalysisServer:
         return _list_datasets()
 
     def get_dataset(self, slug: str) -> dict | None:
-        return _load_dataset(slug)
+        """Dataset meta, enriched with each policy's config knobs.
+
+        The client needs these up front — before any view is computed — to render
+        the policy selector and its per-attribute bulk toggles.
+        """
+        meta = _load_dataset(slug)
+        if meta is None:
+            return None
+        attrs = [_policy_attrs(p) for p in meta.get("policies", [])]
+        for pol, a in zip(meta.get("policies", []), attrs):
+            pol["attrs"] = a
+        meta["policy_axes"] = _policy_axes(attrs)
+        return meta
 
     def delete_dataset(self, slug: str) -> bool:
         p = _dataset_path(slug)
         if not p.exists():
             return False
         p.unlink()          # caches are content-addressed and may be shared — keep them
+        _drop_view_cache(slug)   # rendered views are per-dataset, so they go with it
         return True
 
     def create_dataset(self, body: dict) -> dict:
@@ -1275,6 +1644,11 @@ class AnalysisServer:
         axes is pure numpy over the cached arrays, so this is synchronous. Serves
         all four combos: {grid, sampled} × {curves, heatmap}. Returns {"error": …}
         if a run's cache is missing so the client can fall back to Generate.
+
+        Views of a saved dataset are replayed from (and written to) the
+        rendered-view cache — see VIEW_CACHE_DIR. `cache_only` asks for that
+        replay alone: a hit renders, a miss returns without computing, so the
+        client can offer an instant plot without silently doing the work.
         """
         mode = body.get("mode", "det")
         criterion = body.get("criterion", {})
@@ -1289,10 +1663,31 @@ class AnalysisServer:
             for run_name in pol.get("run_names", []):
                 if not _compare_cache_done(run_name, mode, benchmark):
                     return {"error": "not collected"}
+
+        # Cacheable only when the request names a saved dataset: the slug names
+        # the cache dir, and the dataset's own policy list is what "all
+        # selected" is measured against (the client is not trusted to say so).
+        slug = body.get("dataset") or ""
+        labels = [p.get("label", "") for p in policies]
+        meta = _load_dataset(slug) if slug else None
+        cacheable = bool(meta)
+        if cacheable:
+            all_selected = sorted(labels) == sorted(
+                p.get("label", "") for p in meta.get("policies", []))
+            key = _view_cache_key(mode, benchmark, visualization, criterion, labels)
+            stamp = _view_cache_stamp(policies, mode, benchmark)
+            hit = _read_view_cache(slug, key, stamp, all_selected)
+            if hit is not None:
+                return {"status": "ready", "result": hit, "cached": True}
+        if body.get("cache_only"):
+            return {"error": "no cache"}
+
         cmp_policies = _load_compare_policies(policies, mode, benchmark)
         if not cmp_policies:
             return {"error": "not collected"}
         result = _compute_view(cmp_policies, criterion, visualization)
+        if cacheable:
+            _write_view_cache(slug, key, stamp, result, all_selected)
         return {"status": "ready", "result": result}
 
     def delete_session(self, sid: str) -> bool:

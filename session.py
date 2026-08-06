@@ -18,6 +18,9 @@ class RolloutInfo:
     status: RolloutStatus = "pending"
     error: str | None = None
     detail: str | None = None  # transient status text (e.g. "waiting for VRAM")
+    # Pinned axis values this rollout ran at ({} when episode parameters were
+    # sampled). These are what the rollout table filters and sorts on.
+    params: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -27,6 +30,7 @@ class RolloutInfo:
             "status": self.status,
             "error": self.error,
             "detail": self.detail,
+            "params": self.params,
         }
 
 
@@ -37,6 +41,10 @@ class Session:
     run: str
     checkpoint_step: str  # "latest" or numeric step string
     rollouts: list[RolloutInfo] = field(default_factory=list)
+    # Resolved sweep axes ([] when nothing was pinned) — the table's columns —
+    # and the cell coordinates they enumerate, handed to the collector as-is.
+    axes: list = field(default_factory=list)
+    cells: list = field(default_factory=list)
     _lock: threading.Lock = field(
         default_factory=threading.Lock, repr=False, compare=False
     )
@@ -47,6 +55,7 @@ class Session:
                 "session_id": self.session_id,
                 "run": self.run,
                 "checkpoint_step": self.checkpoint_step,
+                "axes": self.axes,
                 "rollouts": [r.to_dict() for r in self.rollouts],
                 "n_done": sum(r.status == "done" for r in self.rollouts),
                 "n_total": len(self.rollouts),

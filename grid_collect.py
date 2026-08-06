@@ -547,6 +547,148 @@ def run_grid_eval(
     }
 
 
+# ── pinned full-trajectory rollouts (single-policy analysis) ──────────────────
+#
+# run_grid_eval keeps per-step scalars for thousands of cells. The single-policy
+# tab needs the opposite trade: a couple of dozen rollouts, but the *whole*
+# trajectory of each — obs, action, the pre-squash distribution, motor targets
+# and the qpos/qvel needed to render video. Those are the artifacts a rollout
+# page is built from and no eval cache holds them, so a pinned analysis has to
+# simulate. What it reuses is the pinning: identical static/traced episode pins
+# and model-field stacking, so a rollout at cube_size=1.15 here is the same
+# episode the grid scored at that cell.
+
+
+def axes_from_spec(env_name: str, cfg: dict, spec: list) -> list[dict]:
+    """Grid axes for a [{name, points}] selection — stdlib + numpy, no JAX.
+
+    Lets the server resolve an axis selection into concrete values (and reject a
+    typo'd name) without importing JAX or restoring a checkpoint, which is what
+    keeps the analyzer's request path free of both.
+    """
+    cands = {c["name"]: c for c in grid_axes.candidates(env_name, cfg)}
+    axes = []
+    for entry in spec:
+        name = entry["name"]
+        cand = cands.get(name)
+        if cand is None:
+            raise ValueError(
+                f"{name!r} is not a sweepable axis for {env_name} "
+                f"(have: {', '.join(sorted(cands)) or 'none'})"
+            )
+        n = max(1, int(entry.get("points", DEFAULT_POINTS)))
+        axes.append({
+            "name": name,
+            "kind": cand["kind"],
+            "space": cand["space"],
+            "values": [float(v) for v in _gen_values(cand, n)],
+            "pin": cand["pin"],
+            "source": cand["source"],
+        })
+    return axes
+
+
+def cell_grid(axes: list[dict]) -> list[list[float]]:
+    """Every axis combination, in the same row-major order as the npz caches."""
+    if not axes:
+        return [[]]
+    _, cell_values = _cell_index(axes)
+    return [[float(v) for v in row] for row in cell_values]
+
+
+def run_pinned_rollouts(
+    handles: dict,
+    axes: list[dict],
+    cells: list,
+    seeds: list,
+    deterministic: bool = True,
+) -> list[dict]:
+    """One full-trajectory rollout per (cell, seed), in that order.
+
+    Every episode runs in one vmapped pass — same env, one compile — so a 24-cell
+    analysis costs about what a 3-seed one does today. Returns artifact dicts in
+    collect.run_batched_rollout's shape, each stamped with the cell it was
+    pinned at.
+    """
+    import copy
+    import functools
+
+    import jax
+    import jax.numpy as jp
+    import numpy as np
+
+    from mujoco_playground import registry
+    from policy_analyzer import collect
+
+    env_name = handles["env_name"]
+    cell_values = np.asarray(cells, dtype=float).reshape(len(cells), len(axes))
+    n_cells = len(cells)
+    seeds = [int(s) for s in seeds]
+    n_seeds = len(seeds)
+
+    ep_cols = [i for i, ax in enumerate(axes) if ax["kind"] == "episode"]
+    model_cols = [i for i, ax in enumerate(axes) if ax["kind"] == "model"]
+    ep_axes = [axes[i] for i in ep_cols]
+    model_axes = [axes[i] for i in model_cols]
+
+    # One env for the whole analysis: only the static pins (branch selectors) go
+    # in, exactly as in run_grid_eval.
+    cfg = copy.deepcopy(handles["env_cfg"])
+    _static_episode_pins(cfg, ep_axes)
+    env = registry.load(env_name, config=cfg)
+
+    model_stack = (
+        _batched_model_fields(env, env_name, model_axes, cell_values[:, model_cols])
+        if model_axes else {}
+    )
+    ep_stack = jp.asarray(cell_values[:, ep_cols], dtype=jp.float32)   # [C, n_ep]
+
+    episode_length = int(handles["ppo_params"].episode_length)
+    inference_fn = handles["make_inference_fn"](handles["params"], deterministic=deterministic)
+    loc_scale_fn = collect._make_loc_scale_fn(handles["ppo_network"], handles["params"])
+    step_fn = functools.partial(collect._rollout_step, inference_fn, loc_scale_fn, env)
+    base_model = env.mjx_model
+
+    def single(model_fields, ep_vals, rng):
+        env._mjx_model = (
+            base_model.tree_replace(model_fields) if model_fields else base_model
+        )
+        try:
+            with _traced_episode_pins(env._config, ep_axes, ep_vals):
+                state = env.reset(rng)
+            _, traj = jax.lax.scan(step_fn, (state, rng), None, length=episode_length)
+        finally:
+            env._mjx_model = base_model
+        return traj
+
+    # Batch element b = cell * n_seeds + s — the order the caller named the
+    # rollouts in.
+    rngs = jax.vmap(jax.random.PRNGKey)(jp.asarray(seeds))            # [S, 2]
+    mf = {f: jp.repeat(v, n_seeds, axis=0) for f, v in model_stack.items()}
+    ep = jp.repeat(ep_stack, n_seeds, axis=0)                         # [B, n_ep]
+    rr = jp.tile(rngs, (n_cells, 1))                                  # [B, 2]
+    batched = jax.jit(jax.vmap(single, in_axes=(0, 0, 0)))(mf, ep, rr)
+
+    import json
+
+    identities = []
+    for c in range(n_cells):
+        params = {ax["name"]: float(cell_values[c, i]) for i, ax in enumerate(axes)}
+        for seed in seeds:
+            identities.append({
+                "deterministic": bool(deterministic),
+                "seed": seed,
+                "cell": c,
+                # JSON rather than a dict: identity entries are stored as 0-d
+                # arrays in rollout.npz, which only round-trips scalars.
+                "params_json": json.dumps(params),
+                # Every swept quantity is held at a known value; what is not
+                # swept still varies (obs noise, perturbations, un-swept axes).
+                "dr": "pinned" if axes else "nominal",
+            })
+    return collect.unpack_batched(batched, handles, env, identities)
+
+
 def run_grid_eval_sequential(
     handles: dict,
     axes: list[dict],

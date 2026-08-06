@@ -251,6 +251,39 @@ def export_frontend(
     else:
         scaled_terms = np.zeros((T, 0))
 
+    # ── target-tracking overlay ───────────────────────────────────────────────
+    # When the task asks the policy to track a scalar setpoint, the env logs the
+    # setpoint and what it actually achieved as (unscaled) diagnostic metrics.
+    # Emit them, plus the success tolerance, so the dashboard can plot achieved
+    # vs. target with a shaded tolerance band. Envs without such a pair (the keys
+    # below are absent) simply get no `tracking` block and the chart is skipped.
+    def _metric_series(name: str):
+        if name in reward_term_keys:
+            return reward_terms_arr[:, reward_term_keys.index(name)].tolist()
+        return None
+
+    # (target_metric, achieved_metric, tolerance_attr, label, units). The
+    # tolerance is a top-level env-config knob (the ±band success is judged on).
+    _TRACKING_SPECS = [
+        ("force_target", "effective_force", "force_tolerance",
+         "cube contact force", "N"),
+    ]
+    tracking = None
+    for tgt_key, act_key, tol_attr, label, units in _TRACKING_SPECS:
+        target = _metric_series(tgt_key)
+        achieved = _metric_series(act_key)
+        if target is None or achieved is None:
+            continue
+        tol = float(getattr(cfg, tol_attr, 0.0)) if cfg is not None else 0.0
+        tracking = {
+            "label": label,
+            "units": units,
+            "target": target,
+            "achieved": achieved,
+            "tolerance": tol,
+        }
+        break
+
     data = {
         "meta": {
             "env_name": env_name,
@@ -261,6 +294,13 @@ def export_frontend(
             "deterministic": bool(npz["id_deterministic"]),
             "seed": int(npz["id_seed"]),
             "tanh_sat": _TANH_SAT,
+            # Present only for a pinned rollout: which grid cell it is and the
+            # axis values held fixed for it, so the page can say what this
+            # episode was, not just which seed drew it.
+            **({"cell": int(npz["id_cell"])} if "id_cell" in npz.files else {}),
+            **({"params": json.loads(str(npz["id_params_json"]))}
+               if "id_params_json" in npz.files else {}),
+            **({"dr": str(npz["id_dr"])} if "id_dr" in npz.files else {}),
         },
         "input_groups": schema["input_groups"],
         "output_groups": schema["output_groups"],
@@ -278,6 +318,7 @@ def export_frontend(
             "total": scaled_terms.sum(axis=1).tolist(),
             "terms": scaled_terms.tolist(),   # [T, R] scaled per-term time series
         },
+        **({"tracking": tracking} if tracking is not None else {}),
     }
     data_path = run_dir / "data.json"
     with open(data_path, "w") as f:

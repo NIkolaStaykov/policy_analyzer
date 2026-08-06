@@ -326,6 +326,10 @@ def compute_grid_heatmap(policies: list[dict], criterion: dict) -> dict:
         out_policies.append({
             "label": pol["label"],
             "sensor_bundle": pol.get("sensor_bundle", ""),
+            # Config knobs this policy was trained with — the client can put one
+            # on a heatmap axis, pooling the cells of every policy that shares a
+            # value (see _policy_axes in the server).
+            "attrs": pol.get("attrs", {}),
             "n_seeds": len(succ_seeds),
             "n_rollouts": n_rollouts,
             "cell_index": cell_index.tolist(),

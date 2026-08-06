@@ -349,8 +349,33 @@ def run_batched_rollout(
     rngs = jax.vmap(jax.random.PRNGKey)(jp.asarray(seeds))   # [N, 2]
     batched = jax.jit(jax.vmap(single))(rngs)                # each leaf [N, T, ...]
 
+    return unpack_batched(
+        batched, handles, eval_env,
+        identities=[
+            {
+                "deterministic": bool(deterministic),
+                "seed": int(seed),
+                # restore_policy loads the env without a randomization_fn, so
+                # rollouts run on the nominal model even for DR-trained runs.
+                "dr": "nominal",
+            }
+            for seed in seeds
+        ],
+    )
+
+
+def unpack_batched(batched: dict, handles: dict, env, identities: list[dict]) -> list[dict]:
+    """Split a vmapped trajectory into one artifact dict per episode.
+
+    The shape every downstream stage expects — write_artifacts, visualize,
+    export_frontend — so anything that produces full trajectories in a batch
+    (sampled seeds here, pinned grid cells in grid_collect.run_pinned_rollouts)
+    lands in the same format. `identities` carries what differs per episode
+    (seed, and for a pinned rollout its cell coordinates); the parts common to
+    the batch are filled in here.
+    """
     schema = io_schema.build_io_schema(
-        eval_env,
+        env,
         env_name=handles["env_name"],
         sensor_bundle=handles["env_cfg"].sensor_bundle,
         policy_hidden_layer_sizes=handles["ppo_params"].network_factory.get(
@@ -359,15 +384,15 @@ def run_batched_rollout(
     )
 
     results = []
-    for i, seed in enumerate(seeds):
+    for i, identity in enumerate(identities):
         sl = jax.tree_util.tree_map(lambda x: np.asarray(x[i]), batched)  # noqa: B023
         obs = sl["obs"]
-        assert obs.shape[1] == eval_env.obs_size, (
-            f"obs dim {obs.shape[1]} != env.obs_size {eval_env.obs_size}"
+        assert obs.shape[1] == env.obs_size, (
+            f"obs dim {obs.shape[1]} != env.obs_size {env.obs_size}"
         )
         for name in ("action", "pre_squash", "action_scale", "command", "motor_targets"):
-            assert sl[name].shape[1] == eval_env.action_size, (
-                f"{name} dim {sl[name].shape[1]} != env.action_size {eval_env.action_size}"
+            assert sl[name].shape[1] == env.action_size, (
+                f"{name} dim {sl[name].shape[1]} != env.action_size {env.action_size}"
             )
         results.append({
             "obs": obs,
@@ -380,12 +405,8 @@ def run_batched_rollout(
             "schema": schema,
             "identity": {
                 "checkpoint": str(handles["restore_path"]),
-                "dt": float(eval_env.dt),
-                "deterministic": bool(deterministic),
-                "seed": int(seed),
-                # restore_policy loads the env without a randomization_fn, so
-                # rollouts run on the nominal model even for DR-trained runs.
-                "dr": "nominal",
+                "dt": float(env.dt),
+                **identity,
             },
             "traj_qpos": sl["traj_qpos"],
             "traj_qvel": sl["traj_qvel"],
